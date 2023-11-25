@@ -8,17 +8,18 @@
 
 /* Begin PBXBuildFile section */
 		36F9187A2B10EA23000C3F36 /* rendererApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F918792B10EA23000C3F36 /* rendererApp.swift */; };
-		36F9187C2B10EA23000C3F36 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F9187B2B10EA23000C3F36 /* ContentView.swift */; };
 		36F9187E2B10EA24000C3F36 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 36F9187D2B10EA24000C3F36 /* Assets.xcassets */; };
 		36F918812B10EA24000C3F36 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 36F918802B10EA24000C3F36 /* Preview Assets.xcassets */; };
+		36F918882B10EAB1000C3F36 /* Metal+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F918872B10EAB1000C3F36 /* Metal+Extensions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		36F918762B10EA23000C3F36 /* renderer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = renderer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		36F918792B10EA23000C3F36 /* rendererApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rendererApp.swift; sourceTree = "<group>"; };
-		36F9187B2B10EA23000C3F36 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		36F9187D2B10EA24000C3F36 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		36F918802B10EA24000C3F36 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		36F918872B10EAB1000C3F36 /* Metal+Extensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Metal+Extensions.swift"; sourceTree = "<group>"; };
+		36F918892B10EB62000C3F36 /* renderer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = renderer.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,8 +52,9 @@
 		36F918782B10EA23000C3F36 /* renderer */ = {
 			isa = PBXGroup;
 			children = (
+				36F918892B10EB62000C3F36 /* renderer.entitlements */,
+				36F918872B10EAB1000C3F36 /* Metal+Extensions.swift */,
 				36F918792B10EA23000C3F36 /* rendererApp.swift */,
-				36F9187B2B10EA23000C3F36 /* ContentView.swift */,
 				36F9187D2B10EA24000C3F36 /* Assets.xcassets */,
 				36F9187F2B10EA24000C3F36 /* Preview Content */,
 			);
@@ -137,7 +139,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				36F9187C2B10EA23000C3F36 /* ContentView.swift in Sources */,
+				36F918882B10EAB1000C3F36 /* Metal+Extensions.swift in Sources */,
 				36F9187A2B10EA23000C3F36 /* rendererApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -269,11 +271,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = renderer/renderer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"renderer/Preview Content\"";
 				DEVELOPMENT_TEAM = 8J36HRS7L3;
 				ENABLE_PREVIEWS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -287,6 +291,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zhvrnkov.renderer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -298,6 +305,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = renderer/renderer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"renderer/Preview Content\"";
@@ -316,6 +324,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zhvrnkov.renderer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
