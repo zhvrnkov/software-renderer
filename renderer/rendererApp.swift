@@ -296,33 +296,30 @@ struct rendererApp: App {
         let maxY = max(a.y, b.y, c.y)
 
         for y in stride(from: minY, to: maxY, by: 1) {
-            let leftX: Int = {
-                return Int(interpolate(values: leftVertices.map { vector_float2(Float($0.y), Float($0.x)) }, t: Float(y)).rounded())
-            }()
-            let rightX: Int = {
-                    return Int(interpolate(values: rightVertices.map { vector_float2(Float($0.y), Float($0.x)) }, t: Float(y)).rounded())
-            }()
+            let leftX = interpolate(values: leftVertices, t: y)
+            let rightX = interpolate(values: rightVertices, t: y)
             for x in stride(from: min(leftX, rightX), to: max(leftX, rightX), by: 1) {
                 pointer[x, y, image.width] = color
             }
         }
     }
 
-    func interpolate(values: [vector_float2], t: Float) -> Float {
+    func interpolate(values: [vector_long2], t: Int) -> Int {
         var baseIndex = 0
         for (index, value) in values.enumerated() {
-            if t >= value.x {
+            if t >= value.y {
                 baseIndex = index
             }
         }
         let nextIndex = baseIndex + 1
+        let start = values[baseIndex].x
+        let end = values[nextIndex].x
+        let diff = end - start
+        let dy = values[nextIndex].y - values[baseIndex].y
 
-        let normalizedT = (t - values[baseIndex].x) / (values[nextIndex].x - values[baseIndex].x)
+        let nt = (t - values[baseIndex].y)
 
-        let value = values[baseIndex].y + (values[nextIndex].y - values[baseIndex].y) * normalizedT
-        if value.isNaN || value.isInfinite {
-            fatalError()
-        }
+        let value = start + diff * nt / dy
         return value
     }
 
