@@ -285,30 +285,9 @@ struct rendererApp: App {
     func draw(triangle: Triangle, with color: Pixel, in image: Image) {
         var pointer = image.pixelsPointer
 
-        var vertices = [triangle.a, triangle.b, triangle.c]
-        let topMostIndex = vertices.enumerated().min {
-            $0.element.y < $1.element.y
-        }!.offset
-
-        let topVertex = vertices[topMostIndex]
-        vertices.remove(at: topMostIndex)
-        let (leftVertex, rightVertex): (vector_long2, vector_long2) = {
-            let t0 = normalize(vector_float2(vertices[0]) - vector_float2(topVertex))
-            let t1 = normalize(vector_float2(vertices[1]) - vector_float2(topVertex))
-            let mid = mix(t0, t1, t: 0.5)
-            if t0.angle > mid.angle {
-                return (vertices[0], vertices[1])
-            } else {
-                return (vertices[1], vertices[0])
-            }
-        }()
-        var leftVertices = [topVertex, leftVertex]
-        var rightVertices = [topVertex, rightVertex]
-        if leftVertex.y < rightVertex.y {
-            leftVertices.append(rightVertex)
-        } else {
-            rightVertices.append(leftVertex)
-        }
+        let sorted = [triangle.a, triangle.b, triangle.c].sorted { $0.y < $1.y }
+        let leftVertices = [sorted[0], sorted[1], sorted[2]]
+        let rightVertices = [sorted[0], sorted[2]]
 
         let a = triangle.a
         let b = triangle.b
@@ -317,14 +296,13 @@ struct rendererApp: App {
         let maxY = max(a.y, b.y, c.y)
 
         for y in stride(from: minY, to: maxY, by: 1) {
-            //            let t = normy(y)
             let leftX: Int = {
                 return Int(interpolate(values: leftVertices.map { vector_float2(Float($0.y), Float($0.x)) }, t: Float(y)).rounded())
             }()
             let rightX: Int = {
                     return Int(interpolate(values: rightVertices.map { vector_float2(Float($0.y), Float($0.x)) }, t: Float(y)).rounded())
             }()
-            for x in stride(from: leftX, to: rightX, by: 1) {
+            for x in stride(from: min(leftX, rightX), to: max(leftX, rightX), by: 1) {
                 pointer[x, y, image.width] = color
             }
         }
@@ -380,5 +358,11 @@ extension simd_float2 {
             a += 2 * Float.pi
         }
         return a
+    }
+}
+
+extension Array {
+    subscript(cycled index: Index) -> Element {
+        self[(index + count) % count]
     }
 }
