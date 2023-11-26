@@ -22,6 +22,8 @@ struct MetalView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> MTKView {
         let view = MTKView(frame: .zero, device: self.context.device)
+        view.layer.minificationFilter = .nearest
+        view.layer.magnificationFilter = .nearest
         view.delegate = context.coordinator
         view.framebufferOnly = false
         view.autoResizeDrawable = false
@@ -38,8 +40,8 @@ struct MetalView: UIViewRepresentable {
         let buffer: MTLBuffer
         let texture: MTLTexture
 
-        static let width = 512
-        static let height = 512
+        static let width = 256
+        static let height = 256
         static let bytesPerRow = width * 4
 
         init(viewUpdater: @escaping ViewUpdater) {
@@ -117,8 +119,6 @@ struct Line {
     var y0: Int
     var x1: Int
     var y1: Int
-
-    var thickness: Int
 }
 
 struct Triangle {
@@ -156,8 +156,10 @@ struct rendererApp: App {
         defer {
             time += 1 / 60
         }
-        let width = 1
-        let height = 1
+        let width = MetalView.Coordinator.width
+        let height = MetalView.Coordinator.height
+
+//        draw(rect: Rect(x: 0, y: 0, w: 64, h: 64), with: .floats(b: 0, g: 0, r: 0, a: 1), in: image)
 
         //        for y in 0..<height {
         //            for x in 0..<width {
@@ -173,37 +175,38 @@ struct rendererApp: App {
         //            }
         //        }
 
-        //        let line = Line(x0: 64, y0: 64, x1: 512 - 64, y1: 512 - 64, thickness: 14)
-        //        draw(line: line, with: .floats(b: 0, g: 1, r: 0, a: 1), in: image)
-        //
-        //        let line2 = Line(x0: 64, y0: 64, x1: 64, y1: 512 - 64, thickness: 14)
-        //        draw(line: line2, with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
+//        draw(rect: Rect(x: 16, y: 16, w: 32, h: 32), with: .floats(b: 0, g: 0, r: 1, a: 1), in: image)
+//        draw(circle: Circle(x: 128, y: 128, r: 64), with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
+//        let line = Line(x0: 8, y0: 8, x1: 64 - 8, y1: 64 - 18)
+//        draw(line: line, with: .floats(b: 0, g: 1, r: 0, a: 1), in: image)
 
-        //        let line3 = Line(x0: 64, y0: 64, x1: 512 - 64, y1: 512 - 64, thickness: 14)
-        //        draw(line: line3, with: .floats(b: 0, g: 0, r: 1, a: 1), in: image)
+//        let line2 = Line(x0: 64, y0: 64, x1: 64, y1: 512 - 64)
+//        draw(line: line2, with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
 
-        let rect = Rect(x: 0, y: 0, w: 512, h: 512)
-        draw(rect: rect, with: .floats(b: 0, g: 0, r: 0, a: 1), in: image)
+//        let line3 = Line(x0: 64, y0: 64, x1: 512 - 64, y1: 64)
+//        draw(line: line3, with: .floats(b: 0, g: 0, r: 1, a: 1), in: image)
 
-        let triangle = Triangle(a: vector_long2(69, 59), b: vector_long2(59, 69), c: vector_long2(443, 453))
+//
+        let pad = width / 16
+        let triangle = Triangle(a: vector_long2(width / 2, pad), b: vector_long2(pad, width / 2), c: vector_long2(width - pad, width - pad))
         draw(triangle: triangle, with: .floats(b: 0, g: 0, r: 1, a: 1), in: image)
-
-        let tr2 = Triangle(a: vector_long2(0, 0), b: vector_long2(0, 64), c: vector_long2(64, 0))
-        draw(triangle: tr2, with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
-
-        let tr3 = Triangle(a: vector_long2(64, 64), b: vector_long2(0, 64), c: vector_long2(64, 0))
-        draw(triangle: tr3, with: .floats(b: 1, g: 1, r: 0, a: 1), in: image)
-
-        let tr4 = Triangle(a: vector_long2(128, 128), b: vector_long2(128 - 14, 128 + 64), c: vector_long2(128 + 14, 128 + 64))
-        draw(triangle: tr4, with: .floats(b: 1, g: 0, r: 1, a: 1), in: image)
-
-        let tr5 = Triangle(a: vector_long2(128, 256), b: vector_long2(128 - 14, 128 + 64), c: vector_long2(128 + 14, 128 + 64))
-        draw(triangle: tr5, with: .floats(b: 1, g: 0.5, r: 1, a: 1), in: image)
-
-        let center = vector_float2(256, 256)
-        let a = center + vector_float2(cos(time), sin(time)) * 128
-        let tr6 = Triangle(a: vector_long2(a), b: vector_long2(256 - 14, 256), c: vector_long2(256 + 14, 256))
-        draw(triangle: tr6, with: .floats(b: 1, g: 1.0, r: 1, a: 1), in: image)
+//
+//        let tr2 = Triangle(a: vector_long2(0, 0), b: vector_long2(0, 64), c: vector_long2(64, 0))
+//        draw(triangle: tr2, with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
+//
+//        let tr3 = Triangle(a: vector_long2(64, 64), b: vector_long2(0, 64), c: vector_long2(64, 0))
+//        draw(triangle: tr3, with: .floats(b: 1, g: 1, r: 0, a: 1), in: image)
+//
+//        let tr4 = Triangle(a: vector_long2(128, 128), b: vector_long2(128 - 14, 128 + 64), c: vector_long2(128 + 14, 128 + 64))
+//        draw(triangle: tr4, with: .floats(b: 1, g: 0, r: 1, a: 1), in: image)
+//
+//        let tr5 = Triangle(a: vector_long2(128, 256), b: vector_long2(128 - 14, 128 + 64), c: vector_long2(128 + 14, 128 + 64))
+//        draw(triangle: tr5, with: .floats(b: 1, g: 0.5, r: 1, a: 1), in: image)
+//
+//        let center = vector_float2(256, 256)
+//        let a = center + vector_float2(cos(time), sin(time)) * 128
+//        let tr6 = Triangle(a: vector_long2(a), b: vector_long2(256 - 14, 256), c: vector_long2(256 + 14, 256))
+//        draw(triangle: tr6, with: .floats(b: 1, g: 1.0, r: 1, a: 1), in: image)
 
     }
 
@@ -218,67 +221,38 @@ struct rendererApp: App {
 
     func draw(circle: Circle, with color: Pixel, in image: Image) {
         let pointer = image.pixelsPointer
-        let r2 = circle.r * circle.r
         for dy in stride(from: -circle.r, to: circle.r, by: circle.r.signum()) {
             for dx in stride(from: -circle.r, to: circle.r, by: circle.r.signum()) {
-                let ls = dx * dx + dy * dy
-                guard ls <= r2 else {
-                    continue
+                let p = vector_float2(Float(dx), Float(dy)) + 0.5
+                let l = length(p)
+                let r = Float(circle.r)
+                let d: Float
+                if l < r-2 {
+                    d = 1.0
+                } else {
+                    d = simd_clamp(simd_smoothstep(r+2, r-2, l), 0, 1)
                 }
                 let y = circle.y + dy
                 let x = circle.x + dx
-                pointer.advanced(by: y * image.width + x).pointee = color
+                pointer.advanced(by: y * image.width + x).pointee = .floats(b: d, g: 0, r: 0, a: 1)
             }
         }
     }
 
     func draw(line: Line, with color: Pixel, in image: Image) {
         var pointer = image.pixelsPointer
-        //        var t = 0.0
-        //        let dt = 1.0 / Double(abs(line.x1 - line.x0))
-        //        for x in stride(from: line.x0, to: line.x1, by: line.x1.signum()) {
-        //            let y = Double(line.y0) + Double(line.y1 - line.y0) * t
-        //            t += dt
-        //            let half = (Double(line.thickness) / 2).rounded()
-        //            for dy in stride(from: -half + 1, to: half, by: 1) {
-        //                pointer[x, Int((y + dy).rounded()), image.width] = color
-        //            }
-        //        }
+        let dx = line.x1 - line.x0
+        let dy = line.y1 - line.y0
+        let steps = max(dx, dy)
+        let xStep = Float(dx) / Float(steps)
+        let yStep = Float(dy) / Float(steps)
 
-
-        var p0 = vector_float2(Float(line.x0), Float(line.y0))
-        var p1 = vector_float2(Float(line.x1), Float(line.y1))
-        var dir = p1 - p0
-        dir = normalize(vector_float2(-dir.y, dir.x)) * Float(line.thickness) / 2
-
-        let a = vector_long2((p0 + dir).rounded(.toNearestOrAwayFromZero))
-        let b = vector_long2((p0 - dir).rounded(.toNearestOrAwayFromZero))
-        let c = vector_long2((p1 + dir).rounded(.toNearestOrAwayFromZero))
-        let d = vector_long2((p1 - dir).rounded(.toNearestOrAwayFromZero))
-
-        let minY = min(a.y, b.y, c.y, d.y)
-        let maxY = max(a.y, b.y, c.y, d.y)
-        let minX = Float(min(a.x, b.x, c.x, d.x))
-        let maxX = Float(max(a.x, b.x, c.x, d.x))
-
-        let leftMostPoint = a // [a,b,c,d].min { $0.x < $1.x }!
-        let rightMostPoint = d // [a,b,c,d].max { $0.x < $1.x }!
-
-        func normy(_ y: Int) -> Float {
-            return (Float(y) - Float(minY)) / Float(maxY - minY)
-        }
-
-        for y in stride(from: minY, to: maxY, by: 1) {
-            let t = normy(y)
-            let leftX: Int = {
-                return Int(interpolate(a: Float(b.x), bv: vector_float2(normy(leftMostPoint.y), Float(leftMostPoint.x)), c: Float(c.x), t: t).rounded())
-            }()
-            let rightX: Int = {
-                return Int(interpolate(a: Float(b.x), bv: vector_float2(normy(rightMostPoint.y), Float(rightMostPoint.x)), c: Float(c.x), t: t).rounded())
-            }()
-            for x in stride(from: leftX, to: rightX, by: 1) {
-                pointer[x, y, image.width] = color
-            }
+        var x = Float(line.x0)
+        var y = Float(line.y0)
+        for _ in 0..<steps {
+            pointer[Int(x.rounded()), Int(y.rounded()), image.width] = color
+            x += xStep
+            y += yStep
         }
     }
 
@@ -289,16 +263,13 @@ struct rendererApp: App {
         let leftVertices = [sorted[0], sorted[1], sorted[2]]
         let rightVertices = [sorted[0], sorted[2]]
 
-        let a = triangle.a
-        let b = triangle.b
-        let c = triangle.c
-        let minY = min(a.y, b.y, c.y)
-        let maxY = max(a.y, b.y, c.y)
-
-        for y in stride(from: minY, to: maxY, by: 1) {
-            let leftX = interpolate(values: leftVertices, t: y)
-            let rightX = interpolate(values: rightVertices, t: y)
-            for x in stride(from: min(leftX, rightX), to: max(leftX, rightX), by: 1) {
+        for y in stride(from: sorted.first!.y, to: sorted.last!.y, by: 1) {
+            var leftX = interpolate(values: leftVertices, t: y)
+            var rightX = interpolate(values: rightVertices, t: y)
+            if leftX > rightX {
+                swap(&leftX, &rightX)
+            }
+            for x in stride(from: leftX, through: rightX, by: 1) {
                 pointer[x, y, image.width] = color
             }
         }
