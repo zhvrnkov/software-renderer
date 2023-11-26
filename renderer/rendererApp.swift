@@ -125,15 +125,38 @@ struct Triangle {
     var a: vector_long2
     var b: vector_long2
     var c: vector_long2
+
+    func xy(ws: vector_float3) -> vector_float2 {
+        let af = vector_float2(a)
+        let bf = vector_float2(b)
+        let cf = vector_float2(c)
+        return af * ws.x + bf * ws.y + cf * ws.z
+    }
+
+    func ws(xy: vector_float2) -> vector_float3 {
+        let af = vector_float2(a) + 0.5
+        let bf = vector_float2(b) + 0.5
+        let cf = vector_float2(c) + 0.5
+        let T = matrix_float2x2(columns: ((af - cf), (bf - cf)))
+        let wab = T.inverse * (xy - cf)
+        return vector_float3(wab.x, wab.y, 1 - wab.x - wab.y)
+    }
+
+    func inside(_ xy: vector_float2) -> Bool {
+        let ws = self.ws(xy: xy)
+        return 0 <= ws.x && ws.x <= 1 &&
+        0 <= ws.y && ws.y <= 1 &&
+        0 <= ws.z && ws.z <= 1
+    }
 }
 
 extension Pixel {
     static func floats(b: Float, g: Float, r: Float, a: Float) -> Pixel {
         self.init(
-            b: UInt8(b * Float(UInt8.max)),
-            g: UInt8(g * Float(UInt8.max)),
-            r: UInt8(r * Float(UInt8.max)),
-            a: UInt8(a * Float(UInt8.max))
+            b: UInt8(simd_clamp(b, 0, 1.0) * Float(UInt8.max)),
+            g: UInt8(simd_clamp(g, 0, 1.0) * Float(UInt8.max)),
+            r: UInt8(simd_clamp(r, 0, 1.0) * Float(UInt8.max)),
+            a: UInt8(simd_clamp(a, 0, 1.0) * Float(UInt8.max))
         )
     }
 }
@@ -190,6 +213,8 @@ struct rendererApp: App {
         let pad = width / 16
         let triangle = Triangle(a: vector_long2(width / 2, pad), b: vector_long2(pad, width / 2), c: vector_long2(width - pad, width - pad))
         draw(triangle: triangle, with: .floats(b: 0, g: 0, r: 1, a: 1), in: image)
+
+        draw(circle: Circle(x: 8, y: 8, r: 1), with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
 //
 //        let tr2 = Triangle(a: vector_long2(0, 0), b: vector_long2(0, 64), c: vector_long2(64, 0))
 //        draw(triangle: tr2, with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
@@ -263,6 +288,18 @@ struct rendererApp: App {
         let leftVertices = [sorted[0], sorted[1], sorted[2]]
         let rightVertices = [sorted[0], sorted[2]]
 
+        func aa(x: Int, y: Int) -> Float {
+            let c = vector_float2(Float(x), Float(y))
+            var acc: Float = 0
+            for dy in stride(from: 1, through: 2, by: 1) {
+                for dx in stride(from: 1, through: 2, by: 1) {
+                    let p = c + vector_float2(Float(dx), Float(dy)) / 3
+                    acc += triangle.inside(p) ? 0.25 : 0
+                }
+            }
+            return acc
+        }
+
         for y in stride(from: sorted.first!.y, to: sorted.last!.y, by: 1) {
             var leftX = interpolate(values: leftVertices, t: y)
             var rightX = interpolate(values: rightVertices, t: y)
@@ -270,8 +307,10 @@ struct rendererApp: App {
                 swap(&leftX, &rightX)
             }
             for x in stride(from: leftX, through: rightX, by: 1) {
-                pointer[x, y, image.width] = color
+                pointer[x, y, image.width] = .floats(b: 0, g: 0, r: 1, a: 1)
             }
+            pointer[leftX, y, image.width] = .floats(b: 0, g: 0, r: aa(x: leftX, y: y), a: 1)
+            pointer[rightX, y, image.width] = .floats(b: 0, g: 0, r: aa(x: rightX, y: y), a: 1)
         }
     }
 
