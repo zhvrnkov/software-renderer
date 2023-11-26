@@ -40,8 +40,8 @@ struct MetalView: UIViewRepresentable {
         let buffer: MTLBuffer
         let texture: MTLTexture
 
-        static let width = 256
-        static let height = 256
+        static let width = 512
+        static let height = 512
         static let bytesPerRow = width * 4
 
         init(viewUpdater: @escaping ViewUpdater) {
@@ -182,7 +182,7 @@ struct rendererApp: App {
         let width = MetalView.Coordinator.width
         let height = MetalView.Coordinator.height
 
-//        draw(rect: Rect(x: 0, y: 0, w: 64, h: 64), with: .floats(b: 0, g: 0, r: 0, a: 1), in: image)
+        draw(rect: Rect(x: 0, y: 0, w: width, h: height), with: .floats(b: 0, g: 0, r: 0, a: 1), in: image)
 
         //        for y in 0..<height {
         //            for x in 0..<width {
@@ -210,12 +210,21 @@ struct rendererApp: App {
 //        draw(line: line3, with: .floats(b: 0, g: 0, r: 1, a: 1), in: image)
 
 //
-        let pad = width / 16
-        let triangle = Triangle(a: vector_long2(width / 2, pad), b: vector_long2(pad, width / 2), c: vector_long2(width - pad, width - pad))
+        let angle = time
+        let t = matrix_float2x2(columns: (
+            vector_float2(cos(angle), sin(angle)),
+            vector_float2(cos(angle + Float.pi / 2), sin(angle + Float.pi / 2))
+        )
+        )
+        let pad = width / 4
+        var triangle = Triangle(a: vector_long2(width / 2, pad), b: vector_long2(pad, width / 2), c: vector_long2(width - pad, width - pad))
+        let center = vector_float2(Float(width / 2), Float(height / 2))
+        triangle.a = vector_long2((t * (vector_float2(triangle.a) - center)) + center)
+        triangle.b = vector_long2((t * (vector_float2(triangle.b) - center)) + center)
+        triangle.c = vector_long2((t * (vector_float2(triangle.c) - center)) + center)
         draw(triangle: triangle, with: .floats(b: 0, g: 0, r: 1, a: 1), in: image)
 
-        draw(circle: Circle(x: 8, y: 8, r: 1), with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
-//
+        //
 //        let tr2 = Triangle(a: vector_long2(0, 0), b: vector_long2(0, 64), c: vector_long2(64, 0))
 //        draw(triangle: tr2, with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
 //
@@ -291,13 +300,27 @@ struct rendererApp: App {
         func aa(x: Int, y: Int) -> Float {
             let c = vector_float2(Float(x), Float(y))
             var acc: Float = 0
-            for dy in stride(from: 1, through: 2, by: 1) {
-                for dx in stride(from: 1, through: 2, by: 1) {
-                    let p = c + vector_float2(Float(dx), Float(dy)) / 3
-                    acc += triangle.inside(p) ? 0.25 : 0
+            let multisampleCount = 4
+            guard multisampleCount > 1 else {
+                return 1
+            }
+            let step = 1 / Float(multisampleCount * multisampleCount)
+            for dy in stride(from: 1, through: multisampleCount, by: 1) {
+                for dx in stride(from: 1, through: multisampleCount, by: 1) {
+                    let p = c + vector_float2(Float(dx), Float(dy)) / Float(multisampleCount + 1)
+                    acc += triangle.inside(p) ? step : 0
                 }
             }
             return acc
+        }
+
+        func setPixel(x: Int, y: Int, a: Float) {
+            let ws = triangle.ws(xy: vector_float2(Float(x), Float(y)) + 0.5)
+            let ac = vector_float3(1, 0, 0)
+            let bc = vector_float3(0, 1, 0)
+            let cc = vector_float3(0, 0, 1)
+            let color = (ac * ws.x + bc * ws.y + cc * ws.z) * a
+            pointer[x, y, image.width] = .floats(b: color.z, g: color.y, r: color.x, a: 1)
         }
 
         for y in stride(from: sorted.first!.y, to: sorted.last!.y, by: 1) {
@@ -306,11 +329,11 @@ struct rendererApp: App {
             if leftX > rightX {
                 swap(&leftX, &rightX)
             }
-            for x in stride(from: leftX, through: rightX, by: 1) {
-                pointer[x, y, image.width] = .floats(b: 0, g: 0, r: 1, a: 1)
+            for x in stride(from: leftX + 1, to: rightX, by: 1) {
+                setPixel(x: x, y: y, a: 1)
             }
-            pointer[leftX, y, image.width] = .floats(b: 0, g: 0, r: aa(x: leftX, y: y), a: 1)
-            pointer[rightX, y, image.width] = .floats(b: 0, g: 0, r: aa(x: rightX, y: y), a: 1)
+            setPixel(x: leftX, y: y, a: aa(x: leftX, y: y))
+            setPixel(x: rightX, y: y, a: aa(x: rightX, y: y))
         }
     }
 
