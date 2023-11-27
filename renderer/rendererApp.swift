@@ -192,9 +192,9 @@ struct rendererApp: App {
         
         let pad = width / 8
         let tr1 = Triangle3d(
-            a: vector_long3(pad, pad, 1),
+            a: vector_long3(pad, pad, Int(32)),
             b: vector_long3(width - pad, pad, 0),
-            c: vector_long3(pad, height - pad, 1)
+            c: vector_long3(pad, height - pad, Int(32))
         )
         let ptr1 = project(triangle3d: tr1)
         draw(triangle: ptr1, with: .floats(b: 0, g: 0, r: 0, a: 1), in: image)
@@ -285,7 +285,7 @@ struct rendererApp: App {
         func aa(x: Int, y: Int) -> Float {
             let c = vector_float2(Float(x), Float(y))
             var acc: Float = 0
-            let multisampleCount = 1
+            let multisampleCount = 2
             guard multisampleCount > 1 else {
                 return 1
             }
@@ -362,10 +362,29 @@ struct rendererApp: App {
         // near = 0
         // far = 10
         
+        let x0: Float = 0
+        let y: Float = 0
+        let w: Float = 512
+        let h: Float = 512
+        let zNear: Float = 128
+
+        func project(_ xyz: vector_float3) -> vector_long2 {
+            let c_xz = vector_float2(w / 2, 0)
+            let t = xyz.z / (zNear + xyz.z)
+            let t_xz = vector_float2(xyz.x, xyz.z)
+            let px = mix(t_xz, c_xz - t_xz, t: t).x
+
+            let c_yz = vector_float2(h / 2, 0)
+            let t_yz = vector_float2(xyz.y, xyz.z)
+            let py = mix(t_yz, c_yz - t_yz, t: t).x
+
+            return vector_long2(Int(px), Int(py))
+        }
+
         return Triangle(
-            a: triangle3d.a.xy,
-            b: triangle3d.b.xy,
-            c: triangle3d.c.xy
+            a: project(vector_float3(triangle3d.a)),
+            b: project(vector_float3(triangle3d.b)),
+            c: project(vector_float3(triangle3d.c))
         )
     }
 }
