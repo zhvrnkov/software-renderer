@@ -40,8 +40,8 @@ struct MetalView: UIViewRepresentable {
         let buffer: MTLBuffer
         let texture: MTLTexture
 
-        static let width = 512
-        static let height = 512
+        static let width = 256
+        static let height = 256
         static let bytesPerRow = width * 4
 
         init(viewUpdater: @escaping ViewUpdater) {
@@ -150,6 +150,12 @@ struct Triangle {
     }
 }
 
+struct Triangle3d {
+    var a: vector_long3
+    var b: vector_long3
+    var c: vector_long3
+}
+
 extension Pixel {
     static func floats(b: Float, g: Float, r: Float, a: Float) -> Pixel {
         self.init(
@@ -174,42 +180,40 @@ struct rendererApp: App {
     }
 
     @State var time: Float = 0
+    let width = MetalView.Coordinator.width
+    let height = MetalView.Coordinator.height
 
     func render(image: Image) {
         defer {
             time += 1 / 60
         }
-        let width = MetalView.Coordinator.width
-        let height = MetalView.Coordinator.height
 
         draw(rect: Rect(x: 0, y: 0, w: width, h: height), with: .floats(b: 0, g: 0, r: 0, a: 1), in: image)
+        
+        let pad = width / 8
+        let tr1 = Triangle3d(
+            a: vector_long3(pad, pad, 1),
+            b: vector_long3(width - pad, pad, 0),
+            c: vector_long3(pad, height - pad, 1)
+        )
+        let ptr1 = project(triangle3d: tr1)
+        draw(triangle: ptr1, with: .floats(b: 0, g: 0, r: 0, a: 1), in: image)
+        
+        let tr2 = Triangle3d(
+            a: tr1.b, b: tr1.c,
+            c: vector_long3(width - pad, height - pad, 0)
+        )
+        let ptr2 = project(triangle3d: tr2)
+        draw(triangle: ptr2, with: .floats(b: 0, g: 0, r: 0, a: 1), in: image)
+        var pointer = image.pixelsPointer
+        
+//        pointer[ptr1.a.x, ptr1.a.y, image.width] = .floats(b: 1, g: 1, r: 1, a: 1)
+//        pointer[ptr1.b.x, ptr1.b.y, image.width] = .floats(b: 1, g: 1, r: 1, a: 1)
+//        pointer[ptr1.c.x, ptr1.c.y, image.width] = .floats(b: 1, g: 1, r: 1, a: 1)
 
-        //        for y in 0..<height {
-        //            for x in 0..<width {
-        //                let cellW = image.width / width
-        //                let cellH = image.height / height
-        //                let cellX = x * cellW
-        //                let cellY = y * cellH
-        //
-        //                let cellCX = cellX + cellW / 2
-        //                let cellCY = cellY + cellH / 2
-        //
-        //                draw(circle: Circle(x: cellCX, y: cellCY, r: cellW / 4), with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
-        //            }
-        //        }
-
-//        draw(rect: Rect(x: 16, y: 16, w: 32, h: 32), with: .floats(b: 0, g: 0, r: 1, a: 1), in: image)
-//        draw(circle: Circle(x: 128, y: 128, r: 64), with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
-//        let line = Line(x0: 8, y0: 8, x1: 64 - 8, y1: 64 - 18)
-//        draw(line: line, with: .floats(b: 0, g: 1, r: 0, a: 1), in: image)
-
-//        let line2 = Line(x0: 64, y0: 64, x1: 64, y1: 512 - 64)
-//        draw(line: line2, with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
-
-//        let line3 = Line(x0: 64, y0: 64, x1: 512 - 64, y1: 64)
-//        draw(line: line3, with: .floats(b: 0, g: 0, r: 1, a: 1), in: image)
-
-//
+    }
+    
+    func rotationTriangleExample(image: Image) {
         let angle = time
         let t = matrix_float2x2(columns: (
             vector_float2(cos(angle), sin(angle)),
@@ -223,25 +227,6 @@ struct rendererApp: App {
         triangle.b = vector_long2((t * (vector_float2(triangle.b) - center)) + center)
         triangle.c = vector_long2((t * (vector_float2(triangle.c) - center)) + center)
         draw(triangle: triangle, with: .floats(b: 0, g: 0, r: 1, a: 1), in: image)
-
-        //
-//        let tr2 = Triangle(a: vector_long2(0, 0), b: vector_long2(0, 64), c: vector_long2(64, 0))
-//        draw(triangle: tr2, with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
-//
-//        let tr3 = Triangle(a: vector_long2(64, 64), b: vector_long2(0, 64), c: vector_long2(64, 0))
-//        draw(triangle: tr3, with: .floats(b: 1, g: 1, r: 0, a: 1), in: image)
-//
-//        let tr4 = Triangle(a: vector_long2(128, 128), b: vector_long2(128 - 14, 128 + 64), c: vector_long2(128 + 14, 128 + 64))
-//        draw(triangle: tr4, with: .floats(b: 1, g: 0, r: 1, a: 1), in: image)
-//
-//        let tr5 = Triangle(a: vector_long2(128, 256), b: vector_long2(128 - 14, 128 + 64), c: vector_long2(128 + 14, 128 + 64))
-//        draw(triangle: tr5, with: .floats(b: 1, g: 0.5, r: 1, a: 1), in: image)
-//
-//        let center = vector_float2(256, 256)
-//        let a = center + vector_float2(cos(time), sin(time)) * 128
-//        let tr6 = Triangle(a: vector_long2(a), b: vector_long2(256 - 14, 256), c: vector_long2(256 + 14, 256))
-//        draw(triangle: tr6, with: .floats(b: 1, g: 1.0, r: 1, a: 1), in: image)
-
     }
 
     func draw(rect: Rect, with color: Pixel, in image: Image) {
@@ -300,7 +285,7 @@ struct rendererApp: App {
         func aa(x: Int, y: Int) -> Float {
             let c = vector_float2(Float(x), Float(y))
             var acc: Float = 0
-            let multisampleCount = 4
+            let multisampleCount = 1
             guard multisampleCount > 1 else {
                 return 1
             }
@@ -323,7 +308,7 @@ struct rendererApp: App {
             pointer[x, y, image.width] = .floats(b: color.z, g: color.y, r: color.x, a: 1)
         }
 
-        for y in stride(from: sorted.first!.y, to: sorted.last!.y, by: 1) {
+        for y in stride(from: sorted.first!.y, through: sorted.last!.y, by: 1) {
             var leftX = interpolate(values: leftVertices, t: y)
             var rightX = interpolate(values: rightVertices, t: y)
             if leftX > rightX {
@@ -345,12 +330,17 @@ struct rendererApp: App {
             }
         }
         let nextIndex = baseIndex + 1
-        let start = values[baseIndex].x
-        let end = values[nextIndex].x
+        let startValue = values[baseIndex]
+        guard values.indices.contains(nextIndex) else {
+            return startValue.x
+        }
+        let endValue = values[nextIndex]
+        let start = startValue.x
+        let end = endValue.x
         let diff = end - start
-        let dy = values[nextIndex].y - values[baseIndex].y
+        let dy = endValue.y - startValue.y
 
-        let nt = (t - values[baseIndex].y)
+        let nt = (t - startValue.y)
 
         let value = start + diff * nt / dy
         return value
@@ -366,6 +356,23 @@ struct rendererApp: App {
         } else {
             return b + (c - b) * ((t - bp) / (1.0 - bp))
         }
+    }
+    
+    func project(triangle3d: Triangle3d) -> Triangle {
+        // near = 0
+        // far = 10
+        
+        return Triangle(
+            a: triangle3d.a.xy,
+            b: triangle3d.b.xy,
+            c: triangle3d.c.xy
+        )
+    }
+}
+
+extension vector_long3 {
+    var xy: vector_long2 {
+        vector_long2(x, y)
     }
 }
 
