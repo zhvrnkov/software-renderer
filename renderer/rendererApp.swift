@@ -40,8 +40,8 @@ struct MetalView: UIViewRepresentable {
         let buffer: MTLBuffer
         let texture: MTLTexture
 
-        static let width = 256
-        static let height = 256
+        static let width = 512
+        static let height = 512
         static let bytesPerRow = width * 4
 
         init(viewUpdater: @escaping ViewUpdater) {
@@ -121,6 +121,11 @@ struct Line {
     var y1: Int
 }
 
+struct Line3d {
+    var a: vector_long3
+    var b: vector_long3
+}
+
 struct Triangle {
     var a: vector_long2
     var b: vector_long2
@@ -182,6 +187,9 @@ struct rendererApp: App {
     @State var time: Float = 0
     let width = MetalView.Coordinator.width
     let height = MetalView.Coordinator.height
+    
+    @State var z1: Float = 0
+    @State var z2: Float = 0
 
     func render(image: Image) {
         defer {
@@ -190,23 +198,110 @@ struct rendererApp: App {
 
         draw(rect: Rect(x: 0, y: 0, w: width, h: height), with: .floats(b: 0, g: 0, r: 0, a: 1), in: image)
         
-        let pad = width / 8
-        let tr1 = Triangle3d(
-            a: vector_long3(pad, pad, Int(32)),
-            b: vector_long3(width - pad, pad, 0),
-            c: vector_long3(pad, height - pad, Int(32))
-        )
-        let ptr1 = project(triangle3d: tr1)
-        draw(triangle: ptr1, with: .floats(b: 0, g: 0, r: 0, a: 1), in: image)
+//        if time.truncatingRemainder(dividingBy: 20) < 10 {
+//            z1 += 1 / 20
+//        } else {
+//            z2 += 1 / 10
+//        }
         
-        let tr2 = Triangle3d(
-            a: tr1.b, b: tr1.c,
-            c: vector_long3(width - pad, height - pad, 0)
-        )
-        let ptr2 = project(triangle3d: tr2)
-        draw(triangle: ptr2, with: .floats(b: 0, g: 0, r: 0, a: 1), in: image)
-        var pointer = image.pixelsPointer
+        let pad = width / 4
+        let width = width - pad - pad
+        let height = height - pad - pad
+        let depth = width
         
+        let a0 = vector_long3(pad, pad, 0)
+        let b0 = vector_long3(pad + width, pad, 0)
+        let c0 = vector_long3(pad, pad + height, 0)
+        let d0 = vector_long3(pad + width, pad + height, 0)
+        let a1 = vector_long3(pad, pad, depth)
+        let b1 = vector_long3(pad + width, pad, depth)
+        let c1 = vector_long3(pad, pad + height, depth)
+        let d1 = vector_long3(pad + width, pad + height, depth)
+        var faces = [
+            [a0, b0, c0, d0],
+            [a1, b1, c1, d1],
+            [a1, a0, c1, c0],
+            [b1, b0, a1, a0],
+            [b0, b1, d0, d1],
+            [c0, c1, d0, d1]
+        ]
+        
+        func drawFace(abcd: [vector_long3]) {
+            let a = apply(to: abcd[0])
+            let b = apply(to: abcd[1])
+            let c = apply(to: abcd[2])
+            let d = apply(to: abcd[3])
+            draw(
+                line: project(line3d: Line3d(a: a, b: b)),
+                with: .floats(b: 0, g: 1, r: 0, a: 1),
+                in: image
+            )
+            draw(
+                line: project(line3d: Line3d(a: b, b: d)),
+                with: .floats(b: 0, g: 1, r: 0, a: 1),
+                in: image
+            )
+            draw(
+                line: project(line3d: Line3d(a: d, b: c)),
+                with: .floats(b: 0, g: 1, r: 0, a: 1),
+                in: image
+            )
+            draw(
+                line: project(line3d: Line3d(a: c, b: a)),
+                with: .floats(b: 0, g: 1, r: 0, a: 1),
+                in: image
+            )
+        }
+        
+        let transform: matrix_float3x3 = { 
+            let yRot = matrix_float3x3(
+                simd_quatf(angle: time * 0.5, axis: .init(x: 0, y: 1, z: 0))
+            )
+            let xRot = matrix_float3x3(
+                simd_quatf(angle: time * 0.1 + 1.2, axis: .init(x: 1, y: 0, z: 0))
+            )
+            return yRot // * xRot
+        }()
+        func apply(to p: vector_long3) -> vector_long3 {
+            let center = vector_float3(
+                Float(self.width) / 2,
+                Float(self.height) / 2,
+                Float(depth) / 2
+            )
+            var fp = vector_float3(p)
+            fp = fp - center
+            fp = transform * fp
+            fp = fp + center
+            
+            return vector_long3(fp.rounded(.toNearestOrAwayFromZero))
+        }
+        var triangle1: Triangle3d = {
+            var tr = Triangle3d(
+                a: .init(self.width / 2, pad, depth / 2),
+                b: .init(self.width - pad, self.height - pad, depth / 2),
+                c: .init(pad, self.height - pad, depth / 2)
+            )
+            tr.a = apply(to: tr.a)
+            tr.b = apply(to: tr.b)
+            tr.c = apply(to: tr.c)
+            return tr
+        }()
+        var triangle2: Triangle3d = {
+            var tr = Triangle3d(
+                a: .init(self.width / 2, pad, depth / 2),
+                b: .init(self.width / 2, self.height - pad, depth / 2 - pad),
+                c: .init(self.width / 2, self.height - pad, depth / 2 + pad)
+            )
+            tr.a = apply(to: tr.a)
+            tr.b = apply(to: tr.b)
+            tr.c = apply(to: tr.c)
+            return tr
+        }()
+        draw(triangle: project(triangle3d: triangle1), with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
+        draw(triangle: project(triangle3d: triangle2), with: .floats(b: 1, g: 0, r: 0, a: 1), in: image)
+//        for face in faces {
+//            drawFace(abcd: face)
+//        }
 //        pointer[ptr1.a.x, ptr1.a.y, image.width] = .floats(b: 1, g: 1, r: 1, a: 1)
 //        pointer[ptr1.b.x, ptr1.b.y, image.width] = .floats(b: 1, g: 1, r: 1, a: 1)
 //        pointer[ptr1.c.x, ptr1.c.y, image.width] = .floats(b: 1, g: 1, r: 1, a: 1)
@@ -262,7 +357,7 @@ struct rendererApp: App {
         var pointer = image.pixelsPointer
         let dx = line.x1 - line.x0
         let dy = line.y1 - line.y0
-        let steps = max(dx, dy)
+        let steps = max(abs(dx), abs(dy))
         let xStep = Float(dx) / Float(steps)
         let yStep = Float(dy) / Float(steps)
 
@@ -362,30 +457,42 @@ struct rendererApp: App {
         // near = 0
         // far = 10
         
-        let x0: Float = 0
-        let y: Float = 0
-        let w: Float = 512
-        let h: Float = 512
-        let zNear: Float = 128
-
-        func project(_ xyz: vector_float3) -> vector_long2 {
-            let c_xz = vector_float2(w / 2, 0)
-            let t = xyz.z / (zNear + xyz.z)
-            let t_xz = vector_float2(xyz.x, xyz.z)
-            let px = mix(t_xz, c_xz - t_xz, t: t).x
-
-            let c_yz = vector_float2(h / 2, 0)
-            let t_yz = vector_float2(xyz.y, xyz.z)
-            let py = mix(t_yz, c_yz - t_yz, t: t).x
-
-            return vector_long2(Int(px), Int(py))
-        }
-
         return Triangle(
             a: project(vector_float3(triangle3d.a)),
             b: project(vector_float3(triangle3d.b)),
             c: project(vector_float3(triangle3d.c))
         )
+    }
+    
+    func project(line3d: Line3d) -> Line {
+        let a = project(vector_float3(line3d.a))
+        let b = project(vector_float3(line3d.b))
+        return Line(x0: a.x, y0: a.y, x1: b.x, y1: b.y)
+    }
+    
+    func project(_ xyz: vector_float3) -> vector_long2 {
+        let x0: Float = 0
+        let y: Float = 0
+
+        let w: Float = 512
+        let h: Float = 512
+        let zNear: Float = 256
+
+        let c = vector_float3(w / 2, h / 2, -zNear)
+        let xyzFromC = xyz - c
+        let p = c + xyzFromC * (zNear / xyzFromC.z)
+//        print(p)
+        return vector_long2(Int(p.x), Int(p.y))
+//
+//
+//        let t = xyz.z / (zNear + xyz.z)
+//        let t_xz = vector_float2(xyz.x, xyz.z)
+//        let px = mix(t_xz, c.x - t_xz, t: t).x
+//        
+//        let t_yz = vector_float2(xyz.y, xyz.z)
+//        let py = mix(t_yz, c.y - t_yz, t: t).x
+//        
+//        return vector_long2(Int(px), Int(py))
     }
 }
 
