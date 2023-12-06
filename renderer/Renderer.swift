@@ -4,11 +4,38 @@ import simd
 typealias ColorImage = Image<Pixel>
 typealias DepthImage = Image<Float>
 
-struct Image<Pixel> {
-    let pointer: UnsafeMutablePointer<Pixel>
+class Image<Pixel> {
+    init(pointer: UnsafeMutablePointer<Pixel>, width: Int, height: Int, bytesPerRow: Int) {
+        self.pointer = pointer
+        self.width = width
+        self.height = height
+        self.bytesPerRow = bytesPerRow
+    }
+    
+    private(set) var pointer: UnsafeMutablePointer<Pixel>
     let width: Int
     let height: Int
     let bytesPerRow: Int
+    
+    subscript(x: Int, y: Int) -> Pixel {
+        get {
+            guard inBounds(x: x, y: y) else {
+                fatalError()
+            }
+            return pointer[x, y, width]
+        }
+        set {
+            if inBounds(x: x, y: y) {
+                pointer[x, y, width] = newValue
+            } else {
+                print(Self.self, #function, "\(x) and \(y) not in bounds")
+            }
+        }
+    }
+    
+    private func inBounds(x: Int, y: Int) -> Bool {
+        return (0..<width).contains(x) && (0..<height).contains(y)
+    }
 }
 
 struct Pixel {
@@ -98,11 +125,10 @@ final class Renderer {
     func draw(
         triangle3d: Triangle3d,
         with color: Pixel,
-        in image: ColorImage,
+        colorBuffer: ColorImage,
         depthBuffer: DepthImage
     ) {
         let triangle = project(triangle3d: triangle3d)
-        var pointer = image.pointer
         var depthPointer = depthBuffer.pointer
 
         let sorted = [triangle.a, triangle.b, triangle.c].sorted { $0.y < $1.y }
@@ -112,7 +138,7 @@ final class Renderer {
         func aa(x: Int, y: Int) -> Float {
             let c = vector_float2(Float(x), Float(y))
             var acc: Float = 0
-            let multisampleCount = 2
+            let multisampleCount = 1
             guard multisampleCount > 1 else {
                 return 1
             }
@@ -136,13 +162,14 @@ final class Renderer {
             guard depth < depthPointer[x, y, depthBuffer.width] else {
                 return
             }
-            depthPointer[x, y, depthBuffer.width] = depth
+            depthBuffer[x, y] = depth
 
             let ac = vector_float3(1, 0, 0)
             let bc = vector_float3(0, 1, 0)
             let cc = vector_float3(0, 0, 1)
             let color = (ac * ws.x + bc * ws.y + cc * ws.z) * a
-            pointer[x, y, image.width] = .floats(b: color.z, g: color.y, r: color.x, a: 1)
+            
+            colorBuffer[x, y] = .floats(b: color.z, g: color.y, r: color.x, a: 1)
         }
 
         for y in stride(from: sorted.first!.y, through: sorted.last!.y, by: 1) {
@@ -193,7 +220,6 @@ final class Renderer {
     }
 
     func draw(line: Line, with color: Pixel, in image: ColorImage) {
-        var pointer = image.pointer
         let dx = line.x1 - line.x0
         let dy = line.y1 - line.y0
         let steps = max(abs(dx), abs(dy))
@@ -203,15 +229,13 @@ final class Renderer {
         var x = Float(line.x0)
         var y = Float(line.y0)
         for _ in 0..<steps {
-            pointer[Int(x.rounded()), Int(y.rounded()), image.width] = color
+            image[Int(x.rounded()), Int(y.rounded())] = color
             x += xStep
             y += yStep
         }
     }
 
     func draw(triangle: Triangle, with color: Pixel, in image: ColorImage) {
-        var pointer = image.pointer
-
         let sorted = [triangle.a, triangle.b, triangle.c].sorted { $0.y < $1.y }
         let leftVertices = [sorted[0], sorted[1], sorted[2]]
         let rightVertices = [sorted[0], sorted[2]]
@@ -219,7 +243,7 @@ final class Renderer {
         func aa(x: Int, y: Int) -> Float {
             let c = vector_float2(Float(x), Float(y))
             var acc: Float = 0
-            let multisampleCount = 2
+            let multisampleCount = 1
             guard multisampleCount > 1 else {
                 return 1
             }
@@ -240,7 +264,7 @@ final class Renderer {
             let cc = vector_float3(0, 0, 1)
 
             let color = (ac * ws.x + bc * ws.y + cc * ws.z) * a
-            pointer[x, y, image.width] = .floats(b: color.z, g: color.y, r: color.x, a: 1)
+            image[x, y] = .floats(b: color.z, g: color.y, r: color.x, a: 1)
         }
 
         for y in stride(from: sorted.first!.y, through: sorted.last!.y, by: 1) {

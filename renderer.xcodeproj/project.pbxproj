@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3664740C2B20FA7300DBB365 /* Renderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3664740B2B20FA7300DBB365 /* Renderer.swift */; };
 		36F9187A2B10EA23000C3F36 /* rendererApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F918792B10EA23000C3F36 /* rendererApp.swift */; };
 		36F9187E2B10EA24000C3F36 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 36F9187D2B10EA24000C3F36 /* Assets.xcassets */; };
 		36F918812B10EA24000C3F36 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 36F918802B10EA24000C3F36 /* Preview Assets.xcassets */; };
@@ -14,6 +15,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3664740B2B20FA7300DBB365 /* Renderer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Renderer.swift; sourceTree = "<group>"; };
 		36F918762B10EA23000C3F36 /* renderer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = renderer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		36F918792B10EA23000C3F36 /* rendererApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rendererApp.swift; sourceTree = "<group>"; };
 		36F9187D2B10EA24000C3F36 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -54,6 +56,7 @@
 			children = (
 				36F918892B10EB62000C3F36 /* renderer.entitlements */,
 				36F918872B10EAB1000C3F36 /* Metal+Extensions.swift */,
+				3664740B2B20FA7300DBB365 /* Renderer.swift */,
 				36F918792B10EA23000C3F36 /* rendererApp.swift */,
 				36F9187D2B10EA24000C3F36 /* Assets.xcassets */,
 				36F9187F2B10EA24000C3F36 /* Preview Content */,
@@ -140,6 +143,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				36F918882B10EAB1000C3F36 /* Metal+Extensions.swift in Sources */,
+				3664740C2B20FA7300DBB365 /* Renderer.swift in Sources */,
 				36F9187A2B10EA23000C3F36 /* rendererApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -295,7 +299,7 @@
 				SUPPORTS_MACCATALYST = YES;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -330,7 +334,7 @@
 				SUPPORTS_MACCATALYST = YES;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

@@ -239,7 +239,7 @@ struct rendererApp: App {
             fp = transform * fp
             fp = fp + center
             
-            return vector_long3(fp.rounded(.toNearestOrAwayFromZero))
+            return vector_long3(fp.rounded(.toNearestOrEven))
         }
         let triangle1: Triangle3d = {
             var tr = Triangle3d(
@@ -263,8 +263,8 @@ struct rendererApp: App {
             tr.c = apply(to: tr.c)
             return tr
         }()
-        renderer.draw(triangle3d: triangle1, with: .floats(b: 1, g: 0, r: 0, a: 1), in: image, depthBuffer: depthImage)
-        renderer.draw(triangle3d: triangle2, with: .floats(b: 1, g: 0, r: 0, a: 1), in: image, depthBuffer: depthImage)
+        renderer.draw(triangle3d: triangle1, with: .floats(b: 1, g: 0, r: 0, a: 1), colorBuffer: image, depthBuffer: depthImage)
+        renderer.draw(triangle3d: triangle2, with: .floats(b: 1, g: 0, r: 0, a: 1), colorBuffer: image, depthBuffer: depthImage)
     }
 }
 
