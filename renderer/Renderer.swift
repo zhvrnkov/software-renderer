@@ -114,15 +114,26 @@ extension Pixel {
             a: UInt8(simd_clamp(a, 0, 1.0) * Float(UInt8.max))
         )
     }
+    
+    init(float3: simd_float3) {
+        self = .floats(b: float3.z, g: float3.y, r: float3.x, a: 1)
+    }
 }
 
 // ndc to uv
 func project(_ p: simd_float3) -> simd_float2 {
-    let e = vector_float3(0, 0, -1)
-    let e2p = p - e
-    var pp = (e + e2p * (1 / e2p.z)).xy
-    pp *= simd_float2(1, -1) // rotate since in ndc y up but in pixels y is down
-    pp *= 0.5
+    return p.xy
+    // eye located at (0, 0, -1) => p.z + 1 <=> p - e
+
+    // that's why we need w component
+    // we need to divide xy by something
+    // or we will have projection matrix for each vertex
+
+    let scale = 1 / (p.z + 1)
+    let matrix = matrix_float2x2(diagonal: simd_float2(repeating: scale))
+    var pp = matrix * p.xy
+    // rotate since in ndc y up but in pixels y is down
+    // convert to uv
     pp += 0.5
     return pp
 }
@@ -138,18 +149,15 @@ struct Vertex {
     let color: vector_float3
     
     func apply(transform: matrix_float4x4) -> Vertex {
-        Vertex(xyz: (transform * simd_float4(xyz, 1)).xyz, color: color)
-    }
-    
-    func projected() -> Vertex {
-        let projected: simd_float2 = project(xyz)
-        let xyz = simd_float3(projected, xyz.z)
+        let xyzw = transform * simd_float4(xyz, 1)
+        let xyz = xyzw.xyz / xyzw.w
         return Vertex(xyz: xyz, color: color)
     }
     
     func convertedToScreen(width: Int, height: Int) -> Vertex {
+        let uv = xyz.xy * simd_float2(0.5, -0.5) + 0.5
         return Vertex(
-            xyz: simd_float3((xyz.xy * simd_float2(Float(width), Float(height))).rounded(.toNearestOrAwayFromZero), xyz.z),
+            xyz: simd_float3(uv * simd_float2(Float(width), Float(height)).rounded(.toNearestOrAwayFromZero), xyz.z),
             color: color
         )
     }
@@ -158,6 +166,7 @@ struct Vertex {
 enum PrimitiveType {
     case triangle
     case line
+    case vertices
     
     var verticesCount: Int {
         switch self {
@@ -165,6 +174,8 @@ enum PrimitiveType {
             return 3
         case .line:
             return 2
+        case .vertices:
+            return 3
         }
     }
 }
@@ -194,6 +205,8 @@ final class Renderer {
                 return draw(triangle:colorBuffer:depthBuffer:)
             case .line:
                 return draw(line:colorBuffer:depthBuffer:)
+            case .vertices:
+                return draw(vertices:colorBuffer:depthBuffer:)
             }
         }()
         
@@ -202,10 +215,7 @@ final class Renderer {
             let base = primitiveIndex * indicesPerPrimitive
             let indices = renderPass.indices[base..<(base + indicesPerPrimitive)]
             let vertices = indices.map {
-                if renderPass.vertices.indices.contains($0) == false {
-                    print(base, $0)
-                }
-                return renderPass.vertices[$0].apply(transform: renderPass.transform)
+                renderPass.vertices[$0].apply(transform: renderPass.transform)
             }
             draw(vertices, renderPass.colorBuffer, renderPass.depthBuffer)
         }
@@ -220,9 +230,9 @@ final class Renderer {
     func draw(triangle: [Vertex], colorBuffer: ColorImage, depthBuffer: DepthImage) {
         assert(triangle.count == 3)
         #warning("matrix x matrix mul???")
-        let a = triangle[0].projected().convertedToScreen(width: colorBuffer.width, height: colorBuffer.height)
-        let b = triangle[1].projected().convertedToScreen(width: colorBuffer.width, height: colorBuffer.height)
-        let c = triangle[2].projected().convertedToScreen(width: colorBuffer.width, height: colorBuffer.height)
+        let a = triangle[0].convertedToScreen(width: colorBuffer.width, height: colorBuffer.height)
+        let b = triangle[1].convertedToScreen(width: colorBuffer.width, height: colorBuffer.height)
+        let c = triangle[2].convertedToScreen(width: colorBuffer.width, height: colorBuffer.height)
 
         func setPixel(x: Int, y: Int) {
             guard depthBuffer.contains(x: x, y: y),
@@ -247,7 +257,7 @@ final class Renderer {
             let cc = c.color
             let color = ac * ws.x + bc * ws.y + cc * ws.z
             
-            colorBuffer[x, y] = .floats(b: color.z, g: color.y, r: color.x, a: 1)
+            colorBuffer[x, y] = .init(float3: color)
         }
         
         let sorted = [a, b, c].sorted { $0.xyz.y < $1.xyz.y }.map { simd_long2($0.xyz.xy) }
@@ -272,6 +282,15 @@ final class Renderer {
         assert(line.count == 2)
         let a = line[0]
         let b = line[1]
+    }
+    
+    func draw(vertices: [Vertex], colorBuffer: ColorImage, depthBuffer: DepthImage) {
+        for vertex in vertices {
+            let v = vertex.convertedToScreen(width: colorBuffer.width, height: colorBuffer.height)
+            let x = Int(v.xyz.x)
+            let y = Int(v.xyz.y)
+            colorBuffer[x, y] = Pixel(float3: vertex.color)
+        }
     }
     
     func draw(

@@ -144,12 +144,13 @@ struct rendererApp: App {
                 pointer: depthPointer, width: image.width, height: image.height, bytesPerRow: image.width * MemoryLayout<Float>.stride)
         }()
         
-//        var a = Vertex(xyz: .init(0, 1, 0), color: .init(1, 0, 0))
-//        var b = Vertex(xyz: .init(1, 0, 0), color: .init(0, 1, 0))
-//        var c = Vertex(xyz: .init(-1, 0, 0), color: .init(0, 0, 1))
+//        var a = Vertex(xyz: .init(0, 1,  0.0), color: .init(1, 0, 0))
+//        var b = Vertex(xyz: .init(1, 0,  0.0), color: .init(0, 1, 0))
+//        var c = Vertex(xyz: .init(-1, 0, 0.0), color: .init(0, 0, 1))
 //        var vertices = [a,b,c]
         
         var renderPass = RenderPass(colorBuffer: image, depthBuffer: depthImage, vertices: vertices, indices: indices)
+        renderPass.primitiveType = .triangle
         
 //        print(mesh)
 //        print(mesh.contents.models["MeshModel"]!.parts["MeshPart"]!.buffers[.triangleIndices]?.get(UInt16.self)!.elements)
@@ -158,7 +159,17 @@ struct rendererApp: App {
         transform.rotation = simd_quatf(angle: time, axis: normalize(simd_float3(1.0, 1.0, 0)))
         transform.rotation *= simd_quatf(angle: time * 0.5, axis: simd_float3(0, 0, 1))
         transform.translation = simd_float3(0, 0, 1)
-        renderPass.transform = transform.matrix
+//        transform.scale = max(1.0 - time * 0.01, 0) * simd_float3(repeating: 2.0)
+        transform.scale = simd_float3(repeating: 2.0)
+        
+        let projectionMatrix = matrix_float4x4(rows: [
+            simd_float4(1, 0, 0, 0),
+            simd_float4(0, 1, 0, 0),
+            simd_float4(0, 0, 1, 0),
+            simd_float4(0, 0, 1, 1), // z + 1
+        ])
+        
+        renderPass.transform = projectionMatrix * transform.matrix
         
         renderer.render(renderPass: renderPass)
 //        renderer.clear(image: image, with: .floats(b: 0, g: 0, r: 0, a: 1))
