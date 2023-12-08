@@ -7,6 +7,8 @@
 
 import SwiftUI
 import MetalKit
+import struct RealityKit.Transform
+import class RealityKit.MeshResource
 
 // TODO: Depth buffer
 // TODO: normalized coordinates
@@ -88,6 +90,30 @@ struct MetalView: UIViewRepresentable {
 }
 
 
+//let mesh = MeshResource.generateSphere(radius: 0.25)
+//let vertices = zip(mesh.vertices.elements, mesh.normals.elements).map { (xyz, normal) in Vertex(xyz: xyz, color: abs(normal)) }
+//let indices: [Int] = {
+//    var indices = [Int]()
+//    mesh.indices.forEach { x, y, z in
+//        indices.append(Int(x))
+//        indices.append(Int(y))
+//        indices.append(Int(z))
+//    }
+//    return indices
+//}()
+
+let mesh = MDLMesh(sphereWithExtent: simd_float3(repeating: 0.4), segments: [10, 10], inwardNormals: false, geometryType: .triangles, allocator: nil)
+//let mesh = MDLMesh.newBox(withDimensions: .init(0.5), segments: .init(2), geometryType: .triangles, inwardNormals: false, allocator: nil)
+let submesh = (mesh.submeshes![0] as! MDLSubmesh)
+let indexBuffer = submesh.indexBuffer
+let vertexBuffer = mesh.vertexBuffers[0]
+typealias MDLVertex = (x: Float, y: Float, z: Float, nx: Float, ny: Float, nz: Float, u: Float, v: Float)
+let mdlVertices = Array(UnsafeBufferPointer(
+    start: vertexBuffer.map().bytes.assumingMemoryBound(to: MDLVertex.self), count: mesh.vertexCount
+))
+let vertices = mdlVertices.map { Vertex(xyz: simd_float3($0.x, $0.y, $0.z), color: abs(simd_float3($0.nx, $0.ny, $0.nz))) }
+let indices = Array(UnsafeBufferPointer(start: indexBuffer.map().bytes.assumingMemoryBound(to: UInt16.self), count: submesh.indexCount)).map { Int($0) }
+
 @main
 struct rendererApp: App {
     var body: some Scene {
@@ -108,9 +134,35 @@ struct rendererApp: App {
         defer {
             time += 1 / 60
         }
-
-        renderer.clear(image: image, with: .floats(b: 0, g: 0, r: 0, a: 1))
-        trianglesExample(image: image)
+        var depthImage: DepthImage = {
+            var depthBuffer = [Float](repeating: .infinity, count: image.width * image.height)
+            let depthPointer = depthBuffer.withUnsafeMutableBufferPointer {
+                $0.baseAddress!
+            }
+            
+            return DepthImage(
+                pointer: depthPointer, width: image.width, height: image.height, bytesPerRow: image.width * MemoryLayout<Float>.stride)
+        }()
+        
+//        var a = Vertex(xyz: .init(0, 1, 0), color: .init(1, 0, 0))
+//        var b = Vertex(xyz: .init(1, 0, 0), color: .init(0, 1, 0))
+//        var c = Vertex(xyz: .init(-1, 0, 0), color: .init(0, 0, 1))
+//        var vertices = [a,b,c]
+        
+        var renderPass = RenderPass(colorBuffer: image, depthBuffer: depthImage, vertices: vertices, indices: indices)
+        
+//        print(mesh)
+//        print(mesh.contents.models["MeshModel"]!.parts["MeshPart"]!.buffers[.triangleIndices]?.get(UInt16.self)!.elements)
+        
+        var transform = Transform()
+        transform.rotation = simd_quatf(angle: time, axis: normalize(simd_float3(1.0, 1.0, 0)))
+        transform.rotation *= simd_quatf(angle: time * 0.5, axis: simd_float3(0, 0, 1))
+        transform.translation = simd_float3(0, 0, 1)
+        renderPass.transform = transform.matrix
+        
+        renderer.render(renderPass: renderPass)
+//        renderer.clear(image: image, with: .floats(b: 0, g: 0, r: 0, a: 1))
+//        trianglesExample(image: image)
     }
     
     func rotationTriangleExample(image: ColorImage) {
@@ -301,3 +353,4 @@ extension Array {
         self[(index + count) % count]
     }
 }
+

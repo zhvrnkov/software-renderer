@@ -3,4 +3,54 @@
    uuid = "9A2BF851-E99F-4605-8F35-56E6F8766708"
    type = "1"
    version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "D36619F2-43AB-4082-9BE0-E1ECA2BCF655"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "renderer/rendererApp.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "163"
+            endingLineNumber = "163"
+            landmarkName = "render(image:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "D36619F2-43AB-4082-9BE0-E1ECA2BCF655 - 651cf42ce1a1ee87"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "renderer.rendererApp.render(image: renderer.Image&lt;renderer.Pixel&gt;) -&gt; ()"
+                  moduleName = "renderer"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/vz/fun/software-renderer/renderer/rendererApp.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "153"
+                  endingLineNumber = "153"
+                  offsetFromSymbolStart = "1936">
+               </Location>
+               <Location
+                  uuid = "D36619F2-43AB-4082-9BE0-E1ECA2BCF655 - 651cf42ce1a1eec5"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "renderer.rendererApp.render(image: renderer.Image&lt;renderer.Pixel&gt;) -&gt; ()"
+                  moduleName = "renderer"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/vz/fun/software-renderer/renderer/rendererApp.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "151"
+                  endingLineNumber = "151"
+                  offsetFromSymbolStart = "2656">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
 </Bucket>
