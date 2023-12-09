@@ -17,7 +17,7 @@ import class RealityKit.MeshResource
 struct MetalView: UIViewRepresentable {
 
     typealias UIViewType = MTKView
-    typealias ViewUpdater = (ColorImage) -> Void
+    typealias ViewUpdater = (ColorImage, DepthImage) -> Void
 
     let context = MTLContext.shared
     let viewUpdater: ViewUpdater
@@ -45,6 +45,9 @@ struct MetalView: UIViewRepresentable {
         let viewUpdater: ViewUpdater
         let buffer: MTLBuffer
         let texture: MTLTexture
+        
+        let zBuffer: MTLBuffer
+        let zTexture: MTLTexture
 
         static let width = 512
         static let height = 512
@@ -54,12 +57,16 @@ struct MetalView: UIViewRepresentable {
             self.viewUpdater = viewUpdater
             let length = Self.bytesPerRow * Self.height
             buffer = context.device.makeBuffer(length: length, options: .storageModeShared)!
+            zBuffer = context.device.makeBuffer(length: length, options: .storageModeShared)!
 
-            let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: Self.width, height: Self.height, mipmapped: false)
+            var descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: Self.width, height: Self.height, mipmapped: false)
             descriptor.resourceOptions = buffer.resourceOptions
             descriptor.storageMode = .shared
             descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
             texture = buffer.makeTexture(descriptor: descriptor, offset: 0, bytesPerRow: Self.bytesPerRow)!
+            
+            descriptor.pixelFormat = .r32Float
+            zTexture = zBuffer.makeTexture(descriptor: descriptor, offset: 0, bytesPerRow: Self.bytesPerRow)!
         }
 
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
@@ -82,7 +89,17 @@ struct MetalView: UIViewRepresentable {
                 )
                 image.texture = texture
                 image.buffer = buffer
-                viewUpdater(image)
+                
+                let zContents = zBuffer.contents()
+                let zImage = DepthImage(
+                    pointer: zContents.assumingMemoryBound(to: Float.self),
+                    width: width,
+                    height: height,
+                    bytesPerRow: bytesPerRow
+                )
+                zImage.texture = zTexture
+                zImage.buffer = zBuffer
+                viewUpdater(image, zImage)
                 commandBuffer.copy(from: texture, to: drawable.texture)
                 //                commandBuffer.clear(texture: drawable.texture, color: MTLClearColor(red: 1, green: 1, blue: 0, alpha: 1))
                 commandBuffer.present(drawable)
@@ -104,8 +121,8 @@ struct MetalView: UIViewRepresentable {
 //    return indices
 //}()
 
-let mesh = MDLMesh(sphereWithExtent: simd_float3(repeating: 0.4), segments: [10, 10], inwardNormals: false, geometryType: .triangles, allocator: nil)
-//let mesh = MDLMesh.newBox(withDimensions: .init(0.5), segments: .init(2), geometryType: .triangles, inwardNormals: false, allocator: nil)
+//let mesh = MDLMesh(sphereWithExtent: simd_float3(repeating: 0.4), segments: [10, 10], inwardNormals: false, geometryType: .triangles, allocator: nil)
+let mesh = MDLMesh.newBox(withDimensions: .init(0.5), segments: .init(1), geometryType: .triangles, inwardNormals: false, allocator: nil)
 let submesh = (mesh.submeshes![0] as! MDLSubmesh)
 let indexBuffer = submesh.indexBuffer
 let vertexBuffer = mesh.vertexBuffers[0]
@@ -120,8 +137,8 @@ let indices = Array(UnsafeBufferPointer(start: indexBuffer.map().bytes.assumingM
 struct rendererApp: App {
     var body: some Scene {
         WindowGroup {
-            MetalView { image in
-                render(image: image)
+            MetalView { image, depthImage in
+                render(image: image, depthImage: depthImage)
             }
         }
         .defaultSize(width: 1024, height: 1024)
@@ -133,21 +150,11 @@ struct rendererApp: App {
     let width = MetalView.Coordinator.width
     let height = MetalView.Coordinator.height
 
-    func render(image: ColorImage) {
+    func render(image: ColorImage, depthImage: DepthImage) {
         let renderer = gpuRenderer
         defer {
             time += 1 / 60
         }
-        var depthImage: DepthImage = {
-            var depthBuffer = [Float](repeating: .infinity, count: image.width * image.height)
-            let depthPointer = depthBuffer.withUnsafeMutableBufferPointer {
-                $0.baseAddress!
-            }
-            
-            return DepthImage(
-                pointer: depthPointer, width: image.width, height: image.height, bytesPerRow: image.width * MemoryLayout<Float>.stride)
-        }()
-        
 //        var a = Vertex(xyz: .init(0, 1,  0.0), color: .init(1, 0, 0))
 //        var b = Vertex(xyz: .init(1, 0,  0.0), color: .init(0, 1, 0))
 //        var c = Vertex(xyz: .init(-1, 0, 0.0), color: .init(0, 0, 1))
@@ -173,7 +180,7 @@ struct rendererApp: App {
             simd_float4(0, 0, 1, 1), // z + 1
         ])
         
-        renderPass.transform = .init(diagonal: .one)// projectionMatrix * transform.matrix
+        renderPass.transform = projectionMatrix * transform.matrix
         
         renderer.render(renderPass: renderPass)
 //        renderer.clear(image: image, with: .floats(b: 0, g: 0, r: 0, a: 1))

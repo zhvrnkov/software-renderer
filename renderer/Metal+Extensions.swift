@@ -226,6 +226,16 @@ public extension MTLComputeCommandEncoder {
         setComputePipelineState(state)
         dispatchThreads(size, threadsPerThreadgroup: tgSize)
     }
+    
+    func dispatch1d(
+        state: MTLComputePipelineState,
+        exactly width: Int,
+        threadgroupWidth: Int? = nil
+    ) {
+        let tgWidth = threadgroupWidth ?? state.threadExecutionWidth
+        setComputePipelineState(state)
+        dispatchThreads(MTLSize(width: width, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: tgWidth, height: 1, depth: 1))
+    }
 
     func set(textures: [MTLTexture?]) {
         setTextures(textures, range: textures.indices)

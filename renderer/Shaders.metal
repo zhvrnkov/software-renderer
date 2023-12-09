@@ -6,28 +6,121 @@
 //
 
 #include <metal_stdlib>
+#include <metal_matrix>
+#include <metal_common>
 using namespace metal;
 
-kernel void render_triangle(
+#include <simd/simd.h>
+
+float2x2 inverseMatrix(float2x2 matrix) {
+    float determinant = metal::determinant(matrix);
+    
+    // Check if the determinant is non-zero
+    if (determinant != 0.0) {
+        float2x2 adj;
+        adj.columns[0][0] = matrix.columns[1][1];
+        adj.columns[0][1] = -matrix.columns[0][1];
+        adj.columns[1][0] = -matrix.columns[1][0];
+        adj.columns[1][1] = matrix.columns[0][0];
+        
+        return adj / determinant;
+    }
+    
+    // If the determinant is zero, return the original matrix
+    return matrix;
+}
+
+kernel void clear_depth_buffer(texture2d<float, access::write> depth,
+                               uint2 tpg [[ thread_position_in_grid ]])
+{
+    depth.write(float(INFINITY), tpg);
+}
+
+struct VertexOut {
+    float4 pos;
+    float3 color;
+};
+
+VertexOut vertex_shader(
+                        simd_float3 xyz,
+                        simd_float3 color,
+                        constant float4x4& transform
+                        )
+{
+    float4 xyzw = transform * float4(xyz, 1);
+    VertexOut out;
+    out.pos = xyzw;
+    out.color = color;
+    return out;
+}
+
+kernel void vertex_pass(
+                        constant simd_float3 *vertices,
+                        constant simd_float3 *colors,
+                        constant float4x4& transform,
+                        constant long2& screen_size,
+                        device VertexOut *output,
+                        uint index [[ thread_position_in_grid ]]
+                        )
+{
+    VertexOut vout = vertex_shader(vertices[index], colors[index], transform);
+    
+    vout.pos.xyz /= vout.pos.w;
+    // convert to pixels
+    float2 uv = vout.pos.xy * float2(0.5, -0.5) + 0.5;
+    float2 pixels = round(uv * float2(screen_size));
+    vout.pos.xy = pixels;
+
+    output[index] = vout;
+}
+
+float4 fragment_shader(
+                       VertexOut vin
+                       )
+{
+    return float4(vin.color, 1);
+}
+
+kernel void rasterizer_pass(
                             texture2d<float, access::write> color_buf,
+                            texture2d<float, access::read_write> z_buf,
                             constant uint2& offset,
-                            constant array<simd_uint2, 3>& vertices,
-                            constant array<simd_float3, 3>& colors,
-                            constant float2x2& baricentricM,
+                            constant VertexOut* vs,
+                            constant simd_long3& ti, // triangle_indices
                             uint2 tpg [[ thread_position_in_grid ]]
                             ) 
 {
     float2 xy = float2(offset + tpg) + 0.5;
-    float2 cf = float2(vertices[2]) + 0.5;
-    float2 wab = baricentricM * (xy - cf);
-    float3 ws = float3(wab.x, wab.y, 1 - wab.x - wab.y);
-
-    auto t = 0 <= ws && ws <= 1;
-    bool inside = all(t);
+    float3 ws;
+    {
+        float2 wab;
+        float2 p1 = vs[ti.x].pos.xy;
+        float2 p2 = vs[ti.y].pos.xy;
+        float2 p3 = vs[ti.z].pos.xy;
+        
+        float divider = (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+        wab[0] = (p2.y - p3.y) * (xy.x - p3.x) + (p3.x - p2.x) * (xy.y - p3.y);
+        wab[0] /= divider;
+        
+        wab[1] = (p3.y - p1.y) * (xy.x - p3.x) + (p1.x - p3.x) * (xy.y - p3.y);
+        wab[1] /= divider;
+        ws = float3(wab.x, wab.y, 1 - wab.x - wab.y);
+    }
     
-    float3 color = ws[0] * colors[0] + ws[1] * colors[1] + ws[2] * colors[2];
+
+    bool inside = all(0 <= ws && ws <= 1);
     
     if (inside) {
-        color_buf.write(float4(color, 1), offset + tpg);
+        VertexOut vin;
+        vin.pos = ws[0] * vs[ti[0]].pos + ws[1] * vs[ti[1]].pos + ws[2] * vs[ti[2]].pos;
+        float z_val = z_buf.read(offset + tpg).x;
+        float curr_z_val = vin.pos.z;
+        
+        if (curr_z_val < z_val) {
+            vin.color = ws[0] * vs[ti[0]].color + ws[1] * vs[ti[1]].color + ws[2] * vs[ti[2]].color;
+            color_buf.write(fragment_shader(vin), offset + tpg);
+            z_buf.write(float4(curr_z_val), offset + tpg);
+//            color_buf.write(float4(curr_z_val), offset + tpg);
+        }
     }
 }

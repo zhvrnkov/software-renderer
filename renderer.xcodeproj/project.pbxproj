@@ -11,7 +11,7 @@
 		36CAD88B2B224DB8002BE9EA /* RealityKit+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36CAD88A2B224DB8002BE9EA /* RealityKit+Extensions.swift */; };
 		36CAD88D2B23B95F002BE9EA /* GpuRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36CAD88C2B23B95F002BE9EA /* GpuRenderer.swift */; };
 		36CAD88F2B23BA4C002BE9EA /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 36CAD88E2B23BA4C002BE9EA /* Shaders.metal */; };
-		36F9187A2B10EA23000C3F36 /* rendererApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F918792B10EA23000C3F36 /* rendererApp.swift */; };
+		36F9187A2B10EA23000C3F36 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F918792B10EA23000C3F36 /* App.swift */; };
 		36F9187E2B10EA24000C3F36 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 36F9187D2B10EA24000C3F36 /* Assets.xcassets */; };
 		36F918812B10EA24000C3F36 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 36F918802B10EA24000C3F36 /* Preview Assets.xcassets */; };
 		36F918882B10EAB1000C3F36 /* Metal+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F918872B10EAB1000C3F36 /* Metal+Extensions.swift */; };
@@ -23,7 +23,7 @@
 		36CAD88C2B23B95F002BE9EA /* GpuRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GpuRenderer.swift; sourceTree = "<group>"; };
 		36CAD88E2B23BA4C002BE9EA /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
 		36F918762B10EA23000C3F36 /* renderer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = renderer.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		36F918792B10EA23000C3F36 /* rendererApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = rendererApp.swift; sourceTree = "<group>"; };
+		36F918792B10EA23000C3F36 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		36F9187D2B10EA24000C3F36 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		36F918802B10EA24000C3F36 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		36F918872B10EAB1000C3F36 /* Metal+Extensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Metal+Extensions.swift"; sourceTree = "<group>"; };
@@ -63,7 +63,7 @@
 				36F918892B10EB62000C3F36 /* renderer.entitlements */,
 				36F918872B10EAB1000C3F36 /* Metal+Extensions.swift */,
 				3664740B2B20FA7300DBB365 /* Renderer.swift */,
-				36F918792B10EA23000C3F36 /* rendererApp.swift */,
+				36F918792B10EA23000C3F36 /* App.swift */,
 				36F9187D2B10EA24000C3F36 /* Assets.xcassets */,
 				36F9187F2B10EA24000C3F36 /* Preview Content */,
 				36CAD88A2B224DB8002BE9EA /* RealityKit+Extensions.swift */,
@@ -154,7 +154,7 @@
 				36CAD88F2B23BA4C002BE9EA /* Shaders.metal in Sources */,
 				36F918882B10EAB1000C3F36 /* Metal+Extensions.swift in Sources */,
 				3664740C2B20FA7300DBB365 /* Renderer.swift in Sources */,
-				36F9187A2B10EA23000C3F36 /* rendererApp.swift in Sources */,
+				36F9187A2B10EA23000C3F36 /* App.swift in Sources */,
 				36CAD88D2B23B95F002BE9EA /* GpuRenderer.swift in Sources */,
 				36CAD88B2B224DB8002BE9EA /* RealityKit+Extensions.swift in Sources */,
 			);
