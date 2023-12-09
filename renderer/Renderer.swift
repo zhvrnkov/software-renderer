@@ -1,5 +1,6 @@
 import Foundation
 import simd
+import Metal
 
 typealias ColorImage = Image<Pixel>
 typealias DepthImage = Image<Float>
@@ -13,6 +14,8 @@ class Image<Pixel> {
     }
     
     private(set) var pointer: UnsafeMutablePointer<Pixel>
+    var texture: MTLTexture?
+    var buffer: MTLBuffer?
     let width: Int
     let height: Int
     let bytesPerRow: Int
@@ -83,12 +86,17 @@ struct Triangle {
     }
     
     func ws(xy: vector_float2) -> vector_float3 {
+        let cf = vector_float2(c) + 0.5
+        let t = T()
+        let wab = t * (xy - cf)
+        return vector_float3(wab.x, wab.y, 1 - wab.x - wab.y)
+    }
+    
+    func T() -> matrix_float2x2 {
         let af = vector_float2(a) + 0.5
         let bf = vector_float2(b) + 0.5
         let cf = vector_float2(c) + 0.5
-        let T = matrix_float2x2(columns: ((af - cf), (bf - cf)))
-        let wab = T.inverse * (xy - cf)
-        return vector_float3(wab.x, wab.y, 1 - wab.x - wab.y)
+        return matrix_float2x2(columns: ((af - cf), (bf - cf))).inverse
     }
     
     func inside(_ xy: vector_float2) -> Bool {
@@ -246,11 +254,11 @@ final class Renderer {
             let za = a.xyz.z
             let zb = b.xyz.z
             let zc = c.xyz.z
-            let depth: Float = (za * ws.x + zb * ws.y + zc * ws.z)
-            guard depth < depthBuffer[x, y] else {
-                return
-            }
-            depthBuffer[x, y] = depth
+//            let depth: Float = (za * ws.x + zb * ws.y + zc * ws.z)
+//            guard depth < depthBuffer[x, y] else {
+//                return
+//            }
+//            depthBuffer[x, y] = depth
             
             let ac = a.color
             let bc = b.color

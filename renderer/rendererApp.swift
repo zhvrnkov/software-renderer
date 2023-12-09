@@ -58,7 +58,7 @@ struct MetalView: UIViewRepresentable {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: Self.width, height: Self.height, mipmapped: false)
             descriptor.resourceOptions = buffer.resourceOptions
             descriptor.storageMode = .shared
-            descriptor.usage = [.shaderRead]
+            descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
             texture = buffer.makeTexture(descriptor: descriptor, offset: 0, bytesPerRow: Self.bytesPerRow)!
         }
 
@@ -80,6 +80,8 @@ struct MetalView: UIViewRepresentable {
                     height: height,
                     bytesPerRow: bytesPerRow
                 )
+                image.texture = texture
+                image.buffer = buffer
                 viewUpdater(image)
                 commandBuffer.copy(from: texture, to: drawable.texture)
                 //                commandBuffer.clear(texture: drawable.texture, color: MTLClearColor(red: 1, green: 1, blue: 0, alpha: 1))
@@ -127,10 +129,12 @@ struct rendererApp: App {
 
     @State var time: Float = 0
     let renderer = Renderer()
+    let gpuRenderer = GpuRenderer()
     let width = MetalView.Coordinator.width
     let height = MetalView.Coordinator.height
 
     func render(image: ColorImage) {
+        let renderer = gpuRenderer
         defer {
             time += 1 / 60
         }
@@ -169,7 +173,7 @@ struct rendererApp: App {
             simd_float4(0, 0, 1, 1), // z + 1
         ])
         
-        renderPass.transform = projectionMatrix * transform.matrix
+        renderPass.transform = .init(diagonal: .one)// projectionMatrix * transform.matrix
         
         renderer.render(renderPass: renderPass)
 //        renderer.clear(image: image, with: .floats(b: 0, g: 0, r: 0, a: 1))
