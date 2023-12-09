@@ -87,38 +87,45 @@ final class GpuRenderer {
         
         let primitivesCount = renderPass.indices.count / indicesPerPrimitive
         for primitiveIndex in 0..<primitivesCount {
-            let base = primitiveIndex * indicesPerPrimitive
-            let indices = renderPass.indices[base..<(base + indicesPerPrimitive)]
-
-            let vs = indices.map { vertices[$0].pos.xyz.xy }
-            let a = vs[0]
-            let b = vs[1]
-            let c = vs[2]
+            let rect: (offset: simd_uint2, size: simd_long2) = {
+                let base = primitiveIndex * indicesPerPrimitive
+                let indices = renderPass.indices[base..<(base + indicesPerPrimitive)]
                 
-            let sorted = [a, b, c].sorted { $0.y < $1.y }.map { simd_uint2($0) }
-            let xSorted = [a, b, c].sorted { $0.x < $1.x }.map { simd_uint2($0) }
-
-            let minY = sorted.first!.y
-            let maxY = sorted.last!.y
-            let minX = xSorted.first!.x
-            let maxX = xSorted.last!.x
-            let height = maxY - minY + 1
-            let width = maxX - minX + 1
-            
-            var offset = simd_uint2(minX, minY)
-            var ti = simd_long3(indices[base + 0], indices[base + 1], indices[base + 2])
-            guard width != 0, height != 0 else {
+                let vs = indices.map { vertices[$0].pos.xyz.xy }
+                let a = vs[0]
+                let b = vs[1]
+                let c = vs[2]
+                
+                let sorted = [a, b, c].sorted { $0.y < $1.y }.map { simd_uint2($0) }
+                let xSorted = [a, b, c].sorted { $0.x < $1.x }.map { simd_uint2($0) }
+                
+                let minY = sorted.first!.y
+                let maxY = sorted.last!.y
+                let minX = xSorted.first!.x
+                let maxX = xSorted.last!.x
+                let height = maxY - minY + 1
+                let width = maxX - minX + 1
+                
+                let offset = simd_uint2(minX, minY)
+                
+                return (offset, simd_long2(Int(width), Int(height)))
+            }()
+            guard rect.offset.x != 0, rect.offset.y != 0 else {
                 continue
             }
             commandBuffer.compute { encoder in
+                var offset = rect.offset
+                var indices = renderPass.indices
+                var primitiveIndex = primitiveIndex
                 encoder.set(value: &offset, index: 0)
                 encoder.setBuffer(verticesBuffer, offset: 0, index: 1)
-                encoder.set(value: &ti, index: 2)
+                encoder.set(array: &indices, index: 2)
+                encoder.set(value: &primitiveIndex, index: 3)
                 encoder.setTexture(texture, index: 0)
                 encoder.setTexture(zTexture, index: 1)
                 encoder.dispatch2d(
                     state: rasterizerPassComputePipelineState,
-                    size: MTLSize(width: Int(width), height: Int(height), depth: texture.depth)
+                    size: MTLSize(width: rect.size.x, height: rect.size.y, depth: texture.depth)
                 )
             }
         }

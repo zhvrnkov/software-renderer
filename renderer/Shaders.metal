@@ -86,11 +86,14 @@ kernel void rasterizer_pass(
                             texture2d<float, access::read_write> z_buf,
                             constant uint2& offset,
                             constant VertexOut* vs,
-                            constant simd_long3& ti, // triangle_indices
+                            constant long* indices,
+                            constant long& primitive_index,
                             uint2 tpg [[ thread_position_in_grid ]]
                             ) 
 {
     float2 xy = float2(offset + tpg) + 0.5;
+    long base_indices_index = primitive_index * 3;
+    long3 ti = long3(indices[base_indices_index], indices[base_indices_index + 1], indices[base_indices_index + 2]);
     float3 ws;
     {
         float2 wab;
@@ -120,7 +123,6 @@ kernel void rasterizer_pass(
             vin.color = ws[0] * vs[ti[0]].color + ws[1] * vs[ti[1]].color + ws[2] * vs[ti[2]].color;
             color_buf.write(fragment_shader(vin), offset + tpg);
             z_buf.write(float4(curr_z_val), offset + tpg);
-//            color_buf.write(float4(curr_z_val), offset + tpg);
         }
     }
 }
