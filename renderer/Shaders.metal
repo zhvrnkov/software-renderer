@@ -74,6 +74,45 @@ kernel void vertex_pass(
     output[index] = vout;
 }
 
+//METAL_FUNC
+//uint min3(uint a, uint b, uint c)
+//{
+//    return min(min(a, b), c);
+//}
+//
+//METAL_FUNC
+//uint max3(uint a, uint b, uint c)
+//{
+//    return max(max(a, b), c);
+//}
+
+kernel void roi_pass(
+                     constant VertexOut* vertices,
+                     constant long* indices,
+                     device simd_uint4* output,
+                     uint primitive_index [[ thread_position_in_grid ]]
+                     )
+{
+    long base_indices_index = primitive_index * 3;
+    long3 ti = long3(
+                     indices[base_indices_index],
+                     indices[base_indices_index + 1],
+                     indices[base_indices_index + 2]
+                     );
+    uint2 a = uint2(vertices[ti[0]].pos.xy);
+    uint2 b = uint2(vertices[ti[1]].pos.xy);
+    uint2 c = uint2(vertices[ti[2]].pos.xy);
+    
+    uint minY = min3(a.y, b.y, c.y);
+    uint maxY = max3(a.y, b.y, c.y);
+    uint minX = min3(a.x, b.x, c.x);
+    uint maxX = max3(a.x, b.x, c.x);
+    uint height = maxY - minY + 1;
+    uint width = maxX - minX + 1;
+    
+    output[primitive_index] = simd_uint4(minX, minY, width, height);
+}
+
 float4 fragment_shader(
                        VertexOut vin
                        )

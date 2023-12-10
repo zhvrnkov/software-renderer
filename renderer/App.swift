@@ -121,8 +121,8 @@ struct MetalView: UIViewRepresentable {
 //    return indices
 //}()
 
-//let mesh = MDLMesh(sphereWithExtent: simd_float3(repeating: 0.4), segments: [10, 10], inwardNormals: false, geometryType: .triangles, allocator: nil)
-let mesh = MDLMesh.newBox(withDimensions: .init(0.5), segments: .init(1), geometryType: .triangles, inwardNormals: false, allocator: nil)
+let mesh = MDLMesh(sphereWithExtent: simd_float3(repeating: 0.4), segments: [13, 13], inwardNormals: true, geometryType: .triangles, allocator: nil)
+//let mesh = MDLMesh.newBox(withDimensions: .init(0.5), segments: .init(1), geometryType: .triangles, inwardNormals: false, allocator: nil)
 let submesh = (mesh.submeshes![0] as! MDLSubmesh)
 let indexBuffer = submesh.indexBuffer
 let vertexBuffer = mesh.vertexBuffers[0]

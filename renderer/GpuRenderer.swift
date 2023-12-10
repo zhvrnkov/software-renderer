@@ -23,10 +23,14 @@ final class GpuRenderer {
     lazy var vertexPassComputePipelineState = try! context.makeComputePipelineState(
         functionName: "vertex_pass"
     )
+    lazy var roiPassComputePipelineState = try! context.makeComputePipelineState(
+        functionName: "roi_pass"
+    )
     lazy var rasterizerPassComputePipelineState = try! context.makeComputePipelineState(
         functionName: "rasterizer_pass"
     )
     var vertexOutBuffer: MTLBuffer?
+    var roisBuffer: MTLBuffer?
     
     func render(renderPass: RenderPass) {
         
@@ -34,8 +38,8 @@ final class GpuRenderer {
         let depthTexture = renderPass.depthBuffer.texture!
         let vertices = renderPass.vertices
         
-        let length = vertices.count * MemoryLayout<VO>.stride
         let voBuffer: MTLBuffer = {
+            let length = vertices.count * MemoryLayout<VO>.stride
             if let vertexOutBuffer,
                vertexOutBuffer.length == length {
                 return vertexOutBuffer
@@ -47,6 +51,24 @@ final class GpuRenderer {
                 return newBuffer
             }
         }()
+        let primitivesCount = renderPass.indices.count / renderPass.primitiveType.verticesCount
+        let roiBuffer: MTLBuffer = {
+            let length = primitivesCount * MemoryLayout<simd_uint4>.stride
+            if let roisBuffer,
+               roisBuffer.length == length {
+                return roisBuffer
+            } else {
+                let newBuffer = context.device.makeBuffer(
+                    length: length, options: .storageModeShared
+                )!
+                self.roisBuffer = newBuffer
+                return newBuffer
+            }
+        }()
+        let indicesBuffer: MTLBuffer = {
+            var indices = renderPass.indices
+            return context.device.makeBuffer(bytes: &indices, length: indices.count * MemoryLayout.stride(ofValue: indices[0]))!
+        }()
         
         context.scheduleAndWait { commandBuffer in
             commandBuffer.compute { encoder in
@@ -55,9 +77,15 @@ final class GpuRenderer {
             }
             commandBuffer.clear(texture: texture, color: .init())
             encodeVertexPass(commandBuffer: commandBuffer, renderPass: renderPass, outputBuffer: voBuffer)
+            commandBuffer.compute { encoder in
+                encoder.setBuffer(voBuffer, offset: 0, index: 0)
+                encoder.setBuffer(indicesBuffer, offset: 0, index: 1)
+                encoder.setBuffer(roiBuffer, offset: 0, index: 2)
+                encoder.dispatch1d(state: roiPassComputePipelineState, exactly: primitivesCount)
+            }
         }
         context.scheduleAndWait { commandBuffer in
-            encodeRasterizerPass(commandBuffer: commandBuffer, renderPass: renderPass, verticesBuffer: voBuffer)
+            encodeRasterizerPass(commandBuffer: commandBuffer, renderPass: renderPass, verticesBuffer: voBuffer, indicesBuffer: indicesBuffer, roiBuffer: roiBuffer)
         }
     }
     
@@ -78,8 +106,8 @@ final class GpuRenderer {
         }
     }
     
-    private func encodeRasterizerPass(commandBuffer: MTLCommandBuffer, renderPass: RenderPass, verticesBuffer: MTLBuffer) {
-        let vertices = verticesBuffer.contents().assumingMemoryBound(to: VO.self)
+    private func encodeRasterizerPass(commandBuffer: MTLCommandBuffer, renderPass: RenderPass, verticesBuffer: MTLBuffer, indicesBuffer: MTLBuffer, roiBuffer: MTLBuffer) {
+        let rois = roiBuffer.contents().assumingMemoryBound(to: simd_uint4.self)
 
         let indicesPerPrimitive = renderPass.primitiveType.verticesCount
         let texture = renderPass.colorBuffer.texture!
@@ -87,39 +115,19 @@ final class GpuRenderer {
         
         let primitivesCount = renderPass.indices.count / indicesPerPrimitive
         for primitiveIndex in 0..<primitivesCount {
-            let rect: (offset: simd_uint2, size: simd_long2) = {
-                let base = primitiveIndex * indicesPerPrimitive
-                let indices = renderPass.indices[base..<(base + indicesPerPrimitive)]
-                
-                let vs = indices.map { vertices[$0].pos.xyz.xy }
-                let a = vs[0]
-                let b = vs[1]
-                let c = vs[2]
-                
-                let sorted = [a, b, c].sorted { $0.y < $1.y }.map { simd_uint2($0) }
-                let xSorted = [a, b, c].sorted { $0.x < $1.x }.map { simd_uint2($0) }
-                
-                let minY = sorted.first!.y
-                let maxY = sorted.last!.y
-                let minX = xSorted.first!.x
-                let maxX = xSorted.last!.x
-                let height = maxY - minY + 1
-                let width = maxX - minX + 1
-                
-                let offset = simd_uint2(minX, minY)
-                
-                return (offset, simd_long2(Int(width), Int(height)))
-            }()
+            let rect: (offset: simd_uint2, size: simd_long2) = (
+                rois[primitiveIndex].lowHalf,
+                simd_long2(Int(rois[primitiveIndex].z), Int(rois[primitiveIndex].w))
+            )
             guard rect.offset.x != 0, rect.offset.y != 0 else {
                 continue
             }
             commandBuffer.compute { encoder in
                 var offset = rect.offset
-                var indices = renderPass.indices
                 var primitiveIndex = primitiveIndex
                 encoder.set(value: &offset, index: 0)
                 encoder.setBuffer(verticesBuffer, offset: 0, index: 1)
-                encoder.set(array: &indices, index: 2)
+                encoder.setBuffer(indicesBuffer, offset: 0, index: 2)
                 encoder.set(value: &primitiveIndex, index: 3)
                 encoder.setTexture(texture, index: 0)
                 encoder.setTexture(zTexture, index: 1)
