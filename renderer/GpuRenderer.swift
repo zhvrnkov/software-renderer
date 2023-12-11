@@ -29,9 +29,14 @@ final class GpuRenderer {
     lazy var rasterizerPassComputePipelineState = try! context.makeComputePipelineState(
         functionName: "rasterizer_pass"
     )
+    lazy var reduceComputePipelineState = try! context.makeComputePipelineState(
+        functionName: "reduce"
+    )
     var vertexOutBuffer: MTLBuffer?
     var roisBuffer: MTLBuffer?
-    
+    var verticesBuffer: MTLBuffer?
+    var colorsBuffer: MTLBuffer?
+
     func render(renderPass: RenderPass) {
         
         let texture = renderPass.colorBuffer.texture!
@@ -52,19 +57,19 @@ final class GpuRenderer {
             }
         }()
         let primitivesCount = renderPass.indices.count / renderPass.primitiveType.verticesCount
-        let roiBuffer: MTLBuffer = {
-            let length = primitivesCount * MemoryLayout<simd_uint4>.stride
-            if let roisBuffer,
-               roisBuffer.length == length {
-                return roisBuffer
-            } else {
-                let newBuffer = context.device.makeBuffer(
-                    length: length, options: .storageModeShared
-                )!
-                self.roisBuffer = newBuffer
-                return newBuffer
-            }
-        }()
+//        let roiBuffer: MTLBuffer = {
+//            let length = primitivesCount * MemoryLayout<simd_uint4>.stride
+//            if let roisBuffer,
+//               roisBuffer.length == length {
+//                return roisBuffer
+//            } else {
+//                let newBuffer = context.device.makeBuffer(
+//                    length: length, options: .storageModeShared
+//                )!
+//                self.roisBuffer = newBuffer
+//                return newBuffer
+//            }
+//        }()
         let indicesBuffer: MTLBuffer = {
             var indices = renderPass.indices
             return context.device.makeBuffer(bytes: &indices, length: indices.count * MemoryLayout.stride(ofValue: indices[0]))!
@@ -80,13 +85,38 @@ final class GpuRenderer {
             commandBuffer.compute { encoder in
                 encoder.setBuffer(voBuffer, offset: 0, index: 0)
                 encoder.setBuffer(indicesBuffer, offset: 0, index: 1)
-                encoder.setBuffer(roiBuffer, offset: 0, index: 2)
+//                encoder.setBuffer(texture, offset: 0, index: 2)
+                encoder.setTexture(texture, index: 0)
+                encoder.setTexture(renderPass.depthBuffer.texture!, index: 1)
                 encoder.dispatch1d(state: roiPassComputePipelineState, exactly: primitivesCount)
+                print(roiPassComputePipelineState.threadExecutionWidth)
             }
         }
+
+        var input: [Int32] = (0..<8096).map { Int32($0) }
+        let inputSum = input.reduce(0) { $0 + $1 }
+        var output: Int32 = 0
+        let inputBuffer = context.device.makeBuffer(bytes: &input, length: input.count * 4, options: .storageModeShared)
+        let outputBuffer = context.device.makeBuffer(length: 4, options: .storageModeShared)
+        print(inputSum, outputBuffer!.contents().assumingMemoryBound(to: Int32.self).pointee)
         context.scheduleAndWait { commandBuffer in
-            encodeRasterizerPass(commandBuffer: commandBuffer, renderPass: renderPass, verticesBuffer: voBuffer, indicesBuffer: indicesBuffer, roiBuffer: roiBuffer)
+            commandBuffer.compute { encoder in
+                let threadsPerThreadgroup = MTLSize(width: reduceComputePipelineState.threadExecutionWidth, height: 1, depth: 1)
+                let threadgroupsPerGrid = MTLSize(width: 1, height: 1, depth: 1)
+
+                encoder.setBuffer(inputBuffer, offset: 0, index: 0)
+                encoder.setBuffer(outputBuffer, offset: 0, index: 1)
+                encoder.setThreadgroupMemoryLength(threadsPerThreadgroup.width * MemoryLayout<Int32>.stride, index: 0)
+
+                encoder.setComputePipelineState(reduceComputePipelineState)
+                encoder.dispatchThreadgroups(threadgroupsPerGrid, threadsPerThreadgroup: threadsPerThreadgroup)
+            }
         }
+        print(inputSum, outputBuffer!.contents().assumingMemoryBound(to: Int32.self).pointee)
+        exit(0)
+//        context.scheduleAndWait { commandBuffer in
+//            encodeRasterizerPass(commandBuffer: commandBuffer, renderPass: renderPass, verticesBuffer: voBuffer, indicesBuffer: indicesBuffer, roiBuffer: roiBuffer)
+//        }
     }
     
     private func encodeVertexPass(commandBuffer: MTLCommandBuffer, renderPass: RenderPass, outputBuffer: MTLBuffer) {
@@ -96,8 +126,8 @@ final class GpuRenderer {
         var screenSize = simd_long2(renderPass.colorBuffer.width, renderPass.colorBuffer.height)
         
         commandBuffer.compute { encoder in
-            encoder.set(array: &vertices, index: 0)
-            encoder.set(array: &colors, index: 1)
+            encoder.set(array: &vertices, index: 0, buffer: &verticesBuffer)
+            encoder.set(array: &colors, index: 1, buffer: &colorsBuffer)
             encoder.set(value: &transform, index: 2)
             encoder.set(value: &screenSize, index: 3)
             encoder.setBuffer(outputBuffer, offset: 0, index: 4)
@@ -141,7 +171,21 @@ final class GpuRenderer {
 }
 
 extension MTLComputeCommandEncoder {
-    func set<T>(array: inout [T], index: Int) {
-        setBytes(array, length: MemoryLayout.stride(ofValue: array[0]) * array.count, index: index)
+    func set<T>(array: inout [T], index: Int, buffer: inout MTLBuffer?) {
+        let length = MemoryLayout.stride(ofValue: array[0]) * array.count
+        if length <= 4096 {
+            setBytes(array, length: length, index: index)
+        } else {
+            if let buffer,
+               buffer.length == length {
+                buffer.contents().copyMemory(from: array, byteCount: length)
+                setBuffer(buffer, offset: 0, index: index)
+            } else {
+                let newBuffer = device.makeBuffer(length: length, options: .storageModeShared)!
+                newBuffer.contents().copyMemory(from: array, byteCount: length)
+                buffer = newBuffer
+                setBuffer(newBuffer, offset: 0, index: index)
+            }
+        }
     }
 }

@@ -87,9 +87,10 @@ kernel void vertex_pass(
 //}
 
 kernel void roi_pass(
-                     constant VertexOut* vertices,
+                     constant VertexOut* vs,
                      constant long* indices,
-                     device simd_uint4* output,
+                     texture2d<float, access::write> color_buf,
+                     texture2d<float, access::read_write> z_buf,
                      uint primitive_index [[ thread_position_in_grid ]]
                      )
 {
@@ -99,10 +100,10 @@ kernel void roi_pass(
                      indices[base_indices_index + 1],
                      indices[base_indices_index + 2]
                      );
-    uint2 a = uint2(vertices[ti[0]].pos.xy);
-    uint2 b = uint2(vertices[ti[1]].pos.xy);
-    uint2 c = uint2(vertices[ti[2]].pos.xy);
-    
+    uint2 a = uint2(vs[ti[0]].pos.xy);
+    uint2 b = uint2(vs[ti[1]].pos.xy);
+    uint2 c = uint2(vs[ti[2]].pos.xy);
+
     uint minY = min3(a.y, b.y, c.y);
     uint maxY = max3(a.y, b.y, c.y);
     uint minX = min3(a.x, b.x, c.x);
@@ -110,7 +111,72 @@ kernel void roi_pass(
     uint height = maxY - minY + 1;
     uint width = maxX - minX + 1;
     
-    output[primitive_index] = simd_uint4(minX, minY, width, height);
+    for (uint y = minY; y <= maxY; y++) {
+        for (uint x = minX; x <= maxX; x++) {
+            float2 xy = float2(x, y) + 0.5;
+            float3 ws;
+            {
+                float2 wab;
+                float2 p1 = vs[ti.x].pos.xy;
+                float2 p2 = vs[ti.y].pos.xy;
+                float2 p3 = vs[ti.z].pos.xy;
+
+                float divider = (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+                wab[0] = (p2.y - p3.y) * (xy.x - p3.x) + (p3.x - p2.x) * (xy.y - p3.y);
+                wab[0] /= divider;
+
+                wab[1] = (p3.y - p1.y) * (xy.x - p3.x) + (p1.x - p3.x) * (xy.y - p3.y);
+                wab[1] /= divider;
+                ws = float3(wab.x, wab.y, 1 - wab.x - wab.y);
+            }
+            bool inside = all(0 <= ws && ws <= 1);
+            if (inside) {
+                uint2 pos = uint2(x, y);
+                VertexOut vin;
+                vin.pos = ws[0] * vs[ti[0]].pos + ws[1] * vs[ti[1]].pos + ws[2] * vs[ti[2]].pos;
+                float z_val = z_buf.read(pos).x;
+                float curr_z_val = vin.pos.z;
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+
+                if (curr_z_val < z_val) {
+                    vin.color = ws[0] * vs[ti[0]].color + ws[1] * vs[ti[1]].color + ws[2] * vs[ti[2]].color;
+                    color_buf.write(float4(vin.color, 1), pos);
+                    z_buf.write(float4(curr_z_val), pos);
+                }
+            }
+        }
+    }
+}
+
+kernel void
+reduce(const device int *input [[buffer(0)]],
+       device int *output [[buffer(1)]],
+       threadgroup int *ldata [[threadgroup(0)]],
+       uint gid [[thread_position_in_grid]],
+       uint lid [[thread_position_in_threadgroup]],
+       uint lsize [[threads_per_threadgroup]],
+       uint tsize [[threadgroups_per_grid]],
+       uint simd_size [[threads_per_simdgroup]],
+       uint simd_lane_id [[thread_index_in_simdgroup]],
+       uint simd_group_id [[simdgroup_index_in_threadgroup]])
+{
+    uint block_w = 8096 / 32;
+    uint blocks_count = lsize;
+    uint block_index = lid;
+
+    uint start_index = block_index * block_w;
+
+    ldata[block_index] = 0;
+    for (uint i = 0; i < block_w; i++) {
+        ldata[block_index] += input[start_index + i];
+    }
+//    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    if (block_index == 0) {
+        for (int i = 0; i < 32; i++) {
+            *output += ldata[i];
+        }
+    }
 }
 
 float4 fragment_shader(

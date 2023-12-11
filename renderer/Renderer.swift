@@ -254,11 +254,11 @@ final class Renderer {
             let za = a.xyz.z
             let zb = b.xyz.z
             let zc = c.xyz.z
-//            let depth: Float = (za * ws.x + zb * ws.y + zc * ws.z)
-//            guard depth < depthBuffer[x, y] else {
-//                return
-//            }
-//            depthBuffer[x, y] = depth
+            let depth: Float = (za * ws.x + zb * ws.y + zc * ws.z)
+            guard depth < depthBuffer[x, y] else {
+                return
+            }
+            depthBuffer[x, y] = depth
             
             let ac = a.color
             let bc = b.color
