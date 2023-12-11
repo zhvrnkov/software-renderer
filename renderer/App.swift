@@ -121,7 +121,7 @@ struct MetalView: UIViewRepresentable {
 //    return indices
 //}()
 
-let mesh = MDLMesh(sphereWithExtent: simd_float3(repeating: 0.4), segments: [13, 13], inwardNormals: true, geometryType: .triangles, allocator: nil)
+let mesh = MDLMesh(sphereWithExtent: simd_float3(repeating: 0.4), segments: [10, 10], inwardNormals: true, geometryType: .triangles, allocator: nil)
 //let mesh = MDLMesh.newBox(withDimensions: .init(0.5), segments: .init(1), geometryType: .triangles, inwardNormals: false, allocator: nil)
 let submesh = (mesh.submeshes![0] as! MDLSubmesh)
 let indexBuffer = submesh.indexBuffer
@@ -166,12 +166,36 @@ struct rendererApp: App {
 //        print(mesh)
 //        print(mesh.contents.models["MeshModel"]!.parts["MeshPart"]!.buffers[.triangleIndices]?.get(UInt16.self)!.elements)
         
-        var transform = Transform()
-        transform.rotation = simd_quatf(angle: time, axis: normalize(simd_float3(1.0, 1.0, 0)))
-        transform.rotation *= simd_quatf(angle: time * 0.5, axis: simd_float3(0, 0, 1))
-        transform.translation = simd_float3(0, 0, 1)
-//        transform.scale = max(1.0 - time * 0.01, 0) * simd_float3(repeating: 2.0)
-        transform.scale = simd_float3(repeating: 2.0)
+        let modelMatrix: matrix_float4x4 = {
+            var transform = Transform()
+            transform.rotation = simd_quatf(angle: time, axis: normalize(simd_float3(1.0, 1.0, 0)))
+            transform.rotation *= simd_quatf(angle: time * 0.5, axis: simd_float3(0, 0, 1))
+            transform.translation = simd_float3(0, 0, 0)
+            transform.scale = simd_float3(repeating: 2.0)
+            return transform.matrix
+        }()
+        
+        let cameraMatrix: matrix_float4x4 = {
+            let time = Float.zero
+            let cameraLocation = simd_float3(2 * cos(time * 0.5), 1.0, 2 * sin(time * 0.5))
+//            let cameraLocation = simd_float3(0, 1.0, 1 * sin(time * 0.5))
+//            let cameraLocation = simd_float3(1, 1, -1)
+            var transform = Transform()
+            transform.translation = -cameraLocation
+            let tm = transform.matrix
+            
+            transform.translation = .zero
+            let lookAt = simd_float3(0, 0, 0)
+            let currentLookAt = simd_float3(0, 0, 1)
+            let targetLookAt = normalize(lookAt - cameraLocation)
+            let quat1 = simd_quatf(from: currentLookAt, to: currentLookAt)
+            let quat2 = simd_quatf(from: targetLookAt, to: currentLookAt)
+            let quat = simd_slerp(quat1, quat2, min(1, time * 0.1))
+            transform.rotation = quat2 // simd_quatf(angle: Float.pi / 6, axis: .init(0, 1, 0))
+            let rm = transform.matrix
+            
+            return rm * tm
+        }()
         
         let projectionMatrix = matrix_float4x4(rows: [
             simd_float4(1, 0, 0, 0),
@@ -180,7 +204,7 @@ struct rendererApp: App {
             simd_float4(0, 0, 1, 1), // z + 1
         ])
         
-        renderPass.transform = projectionMatrix * transform.matrix
+        renderPass.transform = projectionMatrix * cameraMatrix * modelMatrix
         
         renderer.render(renderPass: renderPass)
 //        renderer.clear(image: image, with: .floats(b: 0, g: 0, r: 0, a: 1))
